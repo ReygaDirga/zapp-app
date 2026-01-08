@@ -46,9 +46,9 @@ class HomePage extends StatelessWidget {
       children: [
         const CircleAvatar(
           radius: 22,
-          backgroundImage: NetworkImage(
-            "",
-          ),
+          // backgroundImage: NetworkImage(
+          //   "",
+          // ),
         ),
         const SizedBox(width: 10),
         Expanded(

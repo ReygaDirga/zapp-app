@@ -26,7 +26,7 @@ class RoomUsageCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            "${percentage}%",
+            "$percentage%",
             style: TextStyle(
               color: isSelected ? Colors.white : Colors.black,
               fontSize: 18,
