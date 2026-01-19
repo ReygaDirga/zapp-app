@@ -73,7 +73,7 @@ class _OTPPageState extends State<OTPPage> {
       Navigator.pushReplacementNamed(context, '/register');
     } catch (e) {
       otpCtrl.clear();
-      _showError('OTP salah atau sudah expired');
+      _showError('Invalid or expired OTP');
       isVerifying = false;
     }
   }

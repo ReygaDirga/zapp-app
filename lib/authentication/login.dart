@@ -35,12 +35,12 @@ class _LoginPageState extends State<LoginPage> {
     final password = passwordCtrl.text;
 
     if (email.isEmpty || password.isEmpty) {
-      setState(() => errorText = 'Email dan password wajib diisi');
+      setState(() => errorText = 'Email and password are required');
       return;
     }
 
     if (!isValidEmail(email)) {
-      setState(() => errorText = 'Email tidak valid');
+      setState(() => errorText = 'Invalid email address');
       return;
     }
 
@@ -60,7 +60,7 @@ class _LoginPageState extends State<LoginPage> {
     } on AuthException catch (e) {
       setState(() => errorText = e.message);
     } catch (_) {
-      setState(() => errorText = 'Login gagal');
+      setState(() => errorText = 'Login failed');
     } finally {
       setState(() => isLoading = false);
     }
@@ -76,7 +76,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return AuthLayout(
-      buttonText: "Create new account",
+      buttonText: "Create New Account",
       onButtonPressed: () {
         Navigator.pushNamed(context, '/email');
       },

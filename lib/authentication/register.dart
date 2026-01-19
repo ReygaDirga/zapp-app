@@ -13,6 +13,8 @@ class _RegisterPageState extends State<RegisterPage> {
   bool passwordVisible = false;
   bool confirmPasswordVisible = false;
 
+  String? errorText;
+
   final TextEditingController usernameCtrl = TextEditingController();
   final TextEditingController passwordCtrl = TextEditingController();
   final TextEditingController confirmCtrl = TextEditingController();
@@ -31,21 +33,22 @@ class _RegisterPageState extends State<RegisterPage> {
     confirmCtrl.dispose();
     super.dispose();
   }
+
   String? validatePassword(String password) {
     if (password.length < 6) {
-      return 'Password minimal 6 karakter';
+      return 'Password must be at least 6 characters long';
     }
     if (!RegExp(r'[a-z]').hasMatch(password)) {
-      return 'Password harus ada huruf kecil';
+      return 'Password must contain a lowercase letter';
     }
     if (!RegExp(r'[A-Z]').hasMatch(password)) {
-      return 'Password harus ada huruf besar';
+      return 'Password must contain an uppercase letter';
     }
     if (!RegExp(r'[0-9]').hasMatch(password)) {
-      return 'Password harus ada angka';
+      return 'Password must contain a number';
     }
     if (!RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(password)) {
-      return 'Password harus ada simbol';
+      return 'Password must contain a special character';
     }
     return null;
   }
@@ -55,25 +58,27 @@ class _RegisterPageState extends State<RegisterPage> {
     final password = passwordCtrl.text;
     final confirm = confirmCtrl.text;
 
+    setState(() => errorText = null);
+
     if (username.isEmpty) {
-      _error('Username wajib diisi');
+      setState(() => errorText = 'Username is required');
       return;
     }
 
     final passwordError = validatePassword(password);
     if (passwordError != null) {
-      _error(passwordError);
+      setState(() => errorText = passwordError);
       return;
     }
 
     if (password != confirm) {
-      _error('Password dan konfirmasi tidak sama');
+      setState(() => errorText = 'Password and confirmation do not match');
       return;
     }
 
     final user = supabase.auth.currentUser;
     if (user == null) {
-      _error('Session habis, silakan login ulang');
+      setState(() => errorText = 'Session expired, please log in again');
       return;
     }
 
@@ -90,20 +95,15 @@ class _RegisterPageState extends State<RegisterPage> {
       Navigator.pushReplacementNamed(context, '/login');
     } catch (e) {
       debugPrint('REGISTER ERROR: $e');
-      _error('Username sudah digunakan atau terjadi kesalahan');
+      setState(() =>
+      errorText = 'Username already exists or an error occurred');
     }
-  }
-
-  void _error(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return AuthLayout(
-      buttonText: "Create new account",
+      buttonText: "Create New Account",
       onButtonPressed: _completeRegistration,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -189,12 +189,28 @@ class _RegisterPageState extends State<RegisterPage> {
                       : Icons.visibility_off,
                 ),
                 onPressed: () {
-                  setState(() =>
-                  confirmPasswordVisible = !confirmPasswordVisible);
+                  setState(() {
+                    confirmPasswordVisible =
+                    !confirmPasswordVisible;
+                  });
                 },
               ),
             ),
           ),
+
+          const SizedBox(height: 12),
+
+          if (errorText != null)
+            Center(
+              child: Text(
+                errorText!,
+                style: const TextStyle(
+                  color: Colors.red,
+                  fontSize: 12,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
 
           const SizedBox(height: 40),
         ],
