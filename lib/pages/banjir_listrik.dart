@@ -7,22 +7,27 @@ class NewsDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        foregroundColor: Colors.black,
+
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+      ),
+
+      // CONTENT SCROLL
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: const CircleAvatar(
-                  radius: 18,
-                  backgroundColor: Color(0xFFFFFF),
-                  child: Icon(Icons.arrow_back, color: Colors.black),
-                ),
-              ),
-
-              const SizedBox(height: 20),
               const Text(
                 'Banjir Jakarta, Ini 6 Tips Menghindari Sengatan Listrik dalam Air saat Banjir',
                 style: TextStyle(
@@ -50,7 +55,7 @@ class NewsDetailPage extends StatelessWidget {
 
               const SizedBox(height: 16),
 
-              /// IMAGE
+              // IMAGE
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: Image.asset(
@@ -63,7 +68,7 @@ class NewsDetailPage extends StatelessWidget {
 
               const SizedBox(height: 12),
 
-              /// IMAGE CAPTION
+              // IMAGE CAPTION
               const Center(
                 child: Text(
                   'Banjir akibat luapan Kali Bekasi\n(IDN Times / Imam Faishal)',
@@ -74,7 +79,7 @@ class NewsDetailPage extends StatelessWidget {
 
               const SizedBox(height: 16),
 
-              /// CONTENT
+              // CONTENT
               const Text(
                 'Kondisi banjir di Jakarta memang selalu menguji kesabaran. '
                     'Mulai dari transportasi hingga komunikasi, semuanya terganggu. '
@@ -87,7 +92,6 @@ class NewsDetailPage extends StatelessWidget {
                     'Melansir berbagai sumber, berikut ini beberapa tips '
                     'menghindari sengatan listrik saat banjir yang bisa kamu '
                     'lakukan demi menghindari kondisi berbahaya tersebut.\n\n',
-
                 style: TextStyle(fontSize: 14, height: 1.6),
               ),
 

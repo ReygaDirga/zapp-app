@@ -12,12 +12,23 @@ class NewsPage extends StatelessWidget {
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
+
+        // BACK BUTTON FIXED
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+
         title: const Text(
           'News',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
       ),
+
+      // LISTVIEW SCROLL
       body: ListView(
         padding: const EdgeInsets.all(12),
         children: [
@@ -49,7 +60,8 @@ class NewsPage extends StatelessWidget {
           ),
           NewsItem(
             imagePath: 'assets/images/news4.png',
-            title: 'Kebakaran di Universitas Mega Buana Palopo Disebabkan Korsleting Listrik',
+            title:
+            'Kebakaran di Universitas Mega Buana Palopo Disebabkan Korsleting Listrik',
             author: 'Samuel',
             date: 'Nov 15, 2025',
           ),
@@ -137,12 +149,20 @@ class NewsItem extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(author,
-                              style: const TextStyle(
-                                  fontSize: 12, color: Colors.grey)),
-                          Text(date,
-                              style: const TextStyle(
-                                  fontSize: 12, color: Colors.grey)),
+                          Text(
+                            author,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          Text(
+                            date,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                          ),
                         ],
                       ),
                     ],
