@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../components/layout.dart';
+import 'dart:async';
 
 class EmailPage extends StatefulWidget {
   const EmailPage({super.key});
@@ -17,14 +18,59 @@ bool isValidEmail(String email) {
 }
 
 class _EmailPageState extends State<EmailPage> {
+  final supabase = Supabase.instance.client;
+
   final _formKey = GlobalKey<FormState>();
   final TextEditingController emailCtrl = TextEditingController();
 
   String? errorMessage;
 
-  Future<void> _sendOtp(String email) async {
-    final supabase = Supabase.instance.client;
+  int? redirectCountdown;
+  Timer? redirectTimer;
 
+  Future<bool> isEmailRegistered(String email) async {
+    final res = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', email)
+        .limit(1);
+
+    return res.isNotEmpty;
+  }
+
+  Future<void> _showErrorAndRedirect(String email) async {
+    redirectTimer?.cancel();
+
+    setState(() {
+      redirectCountdown = 3;
+      errorMessage =
+      "Email already registered. Redirecting to login in ${redirectCountdown}s...";
+    });
+
+    redirectTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (redirectCountdown == null) return;
+
+      if (redirectCountdown! <= 1) {
+        timer.cancel();
+
+        if (!mounted) return;
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/login',
+          (route) => route.isFirst,
+          arguments: email,
+        );
+      } else {
+        setState(() {
+          redirectCountdown = redirectCountdown! - 1;
+          errorMessage =
+          "Email already registered. Redirecting to login in ${redirectCountdown}s...";
+        });
+      }
+    });
+  }
+
+  Future<void> _sendOtp(String email) async {
     await supabase.auth.signInWithOtp(
       email: email,
     );
@@ -32,6 +78,7 @@ class _EmailPageState extends State<EmailPage> {
 
   @override
   void dispose() {
+    redirectTimer?.cancel();
     emailCtrl.dispose();
     super.dispose();
   }
@@ -53,6 +100,12 @@ class _EmailPageState extends State<EmailPage> {
           });
 
           try {
+            final exist = await isEmailRegistered(email);
+            if (exist) {
+              await _showErrorAndRedirect(email);
+              return;
+            }
+
             await _sendOtp(email);
 
             Navigator.pushReplacementNamed(

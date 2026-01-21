@@ -89,6 +89,7 @@ class _RegisterPageState extends State<RegisterPage> {
       await supabase.from('profiles').insert({
         'id': user.id,
         'username': username,
+        'email': user.email
       });
 
       if (!mounted) return;
