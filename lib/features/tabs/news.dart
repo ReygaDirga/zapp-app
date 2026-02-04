@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'banjir_listrik.dart';
+import '../detail/detail_news.dart';
 
 class NewsPage extends StatelessWidget {
   const NewsPage({super.key});

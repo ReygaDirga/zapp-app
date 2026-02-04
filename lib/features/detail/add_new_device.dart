@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../components/layout.dart';
+import 'package:zapp/core/components/layout.dart';
 
 class CalculatePage extends StatefulWidget {
   const CalculatePage({super.key});

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
-import '../components/layout.dart';
+import 'package:zapp/core/components/layout.dart';
 
 class VerifyPage extends StatelessWidget {
   VerifyPage({super.key});

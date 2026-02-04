@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import '../components/layout.dart';
+import 'package:zapp/core/components/layout.dart';
 
 class AddRoom extends StatefulWidget {
   const AddRoom({super.key});

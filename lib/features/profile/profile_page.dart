@@ -2,10 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:zapp/cache/user_cache.dart';
+import 'package:zapp/core/cache/user_cache.dart';
 import 'account_detail.dart';
-import 'contact_us.dart';
-import 'change_password.dart';
+import 'package:zapp/features/support/contact_us.dart';
+import '../password/change_password.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({Key? key}) : super(key: key);

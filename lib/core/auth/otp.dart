@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../components/layout.dart';
+import 'package:zapp/core/components/layout.dart';
 
 class OTPPage extends StatefulWidget {
   const OTPPage({super.key});

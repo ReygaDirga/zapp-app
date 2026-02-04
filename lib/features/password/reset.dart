@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../components/layout.dart';
+import 'package:zapp/core/components/layout.dart';
 
 class ResetPage extends StatefulWidget {
   const ResetPage({super.key});

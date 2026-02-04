@@ -3,20 +3,18 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:zapp/cache/user_cache.dart';
-import 'package:zapp/pages/notifications.dart';
-import 'package:zapp/pages/profile_page.dart';
+import 'package:zapp/core/cache/user_cache.dart';
+import 'package:zapp/features/support/notifications.dart';
+import 'package:zapp/features/profile/profile_page.dart';
 import 'package:zapp/routes/route_observer.dart';
-
-import '../components/carousel.dart';
-import '../components/room_cart.dart';
+import 'package:zapp/core/components/carousel.dart';
+import 'package:zapp/core/components/room_cart.dart';
 import 'calculate.dart';
 import 'history.dart';
 import 'news.dart';
-import 'addroom.dart';
-import 'Home_Office_page.dart';
-import 'Kitchen_page.dart';
-import 'Bedroom_page.dart';
+import 'package:zapp/features/detail/addroom.dart';
+import 'package:zapp/features/detail/Home_Office_page.dart';
+import 'package:zapp/features/detail/Kitchen_page.dart';
 
 
 class HomePage extends StatefulWidget {

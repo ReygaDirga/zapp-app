@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../components/layout.dart';
+import 'package:zapp/core/components/layout.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});

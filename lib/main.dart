@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:zapp/auth/auth_gate.dart';
+import 'package:zapp/core/auth/auth_gate.dart';
 import 'package:zapp/routes/route_observer.dart';
-import 'authentication/welcome.dart';
-import 'authentication/login.dart';
-import 'authentication/email.dart';
-import 'authentication/otp.dart';
-import 'authentication/register.dart';
-import 'password/forgot.dart';
-import 'password/verify.dart';
-import 'password/reset.dart';
-import 'pages/homepage.dart';
+import 'core/auth/welcome.dart';
+import 'package:zapp/core/auth/login.dart';
+import 'core/auth/email.dart';
+import 'core/auth/otp.dart';
+import 'core/auth/register.dart';
+import 'features/password/forgot.dart';
+import 'features/password/verify.dart';
+import 'features/password/reset.dart';
+import 'package:zapp/features/tabs/homepage.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,7 +43,7 @@ class MyApp extends StatelessWidget {
         "/forgot": (context) => ForgotPage(),
         "/verify": (context) => VerifyPage(),
         "/reset": (context) =>  ResetPage(),
-        // "/homepage": (context) => HomePage()
+        "/homepage": (context) => HomePage()
       },
     );
   }

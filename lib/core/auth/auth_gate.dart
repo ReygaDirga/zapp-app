@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../pages/homepage.dart';
-import '../authentication/welcome.dart';
+import 'package:zapp/features/tabs/homepage.dart';
+import 'welcome.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});

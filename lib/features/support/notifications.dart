@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../components/tile.dart';
+import 'package:zapp/core/components/tile.dart';
 
 class NotificationsPage extends StatelessWidget {
   const NotificationsPage({super.key});
