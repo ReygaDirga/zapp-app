@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://assets.zapp.software/logo.png" width="100" alt="ZAPP! Logo" />
+  <img src="https://assets.zapp.software/logo-with-title.png" height="100" alt="ZAPP! Logo" />
 </p>
 
 <p align="center">A mobile application for analyzing household electricity usage and promoting efficient, sustainable energy consumption.</p>
