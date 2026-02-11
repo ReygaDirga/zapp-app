@@ -39,6 +39,28 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
     final picked = await showTimePicker(
       context: context,
       initialTime: isStart ? startTime : endTime,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            timePickerTheme: TimePickerThemeData(
+              backgroundColor: Colors.white,
+              hourMinuteColor: Colors.white,
+              hourMinuteTextColor: Colors.black,
+              dialHandColor: const Color(0xFFF2B599C),
+              dialBackgroundColor: Colors.white,
+              entryModeIconColor: Colors.blue,
+              dayPeriodColor: Colors.blue.shade100,
+              dayPeriodTextColor: Colors.blue.shade900,
+            ),
+            colorScheme: ColorScheme.light(
+              primary: const Color(0xFFF2B599C),
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (!mounted || picked == null) return;
