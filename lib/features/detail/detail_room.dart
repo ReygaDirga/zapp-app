@@ -11,7 +11,9 @@ class HomeOfficePage extends StatefulWidget {
 class _HomeOfficePageState extends State<HomeOfficePage> {
   TimeOfDay startTime = const TimeOfDay(hour: 21, minute: 0);
   TimeOfDay endTime = const TimeOfDay(hour: 6, minute: 0);
-
+  bool _isEditingTitle = false;
+  late TextEditingController _titleController;
+  String roomTitle = "Home Office";
   String selectedDevice = "Air Conditioner";
 
   final Map<String, bool> days = {
@@ -30,10 +32,27 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
   double energyUsage = 20.0;
 
   @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: roomTitle);
+  }
+
+  @override
   void dispose() {
     energyController.dispose();
+    _titleController.dispose();
     super.dispose();
   }
+
+  void _saveTitle() {
+    setState(() {
+      roomTitle = _titleController.text.trim().isEmpty
+          ? roomTitle
+          : _titleController.text.trim();
+      _isEditingTitle = false;
+    });
+  }
+
 
   Future<void> pickTime(bool isStart) async {
     final picked = await showTimePicker(
@@ -124,18 +143,57 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
             ),
           ),
         ),
-        const Positioned(
+        Positioned(
           bottom: 20,
           left: 16,
-          child: Text(
-            "Home Office",
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 26,
-              fontWeight: FontWeight.bold,
-            ),
+          right: 16,
+          child: Row(
+            children: [
+              Expanded(
+                child: _isEditingTitle
+                    ? TextField(
+                  controller: _titleController,
+                  autofocus: true,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    border: InputBorder.none,
+                  ),
+                  onSubmitted: (_) => _saveTitle(),
+                )
+                    : Text(
+                  roomTitle,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+
+              IconButton(
+                icon: Icon(
+                  _isEditingTitle ? Icons.check : Icons.edit,
+                  color: Colors.white,
+                ),
+                onPressed: () {
+                  if (_isEditingTitle) {
+                    _saveTitle();
+                  } else {
+                    setState(() {
+                      _isEditingTitle = true;
+                    });
+                  }
+                },
+              ),
+            ],
           ),
         ),
+
       ],
     );
   }
