@@ -4,12 +4,14 @@ class AuthLayout extends StatelessWidget {
   final Widget content;
   final String? buttonText;
   final VoidCallback? onButtonPressed;
+  final ScrollController? scrollController;
 
   const AuthLayout({
     super.key,
     required this.content,
     this.buttonText,
     this.onButtonPressed,
+    this.scrollController,
   });
 
   @override
@@ -21,6 +23,7 @@ class AuthLayout extends StatelessWidget {
           children: [
             Expanded(
               child: SingleChildScrollView(
+                controller: scrollController,
                 padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
                 child: content,
               ),
