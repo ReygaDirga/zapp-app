@@ -134,6 +134,9 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
   User? user;
   Timer? _retryTimer;
   bool _isFetching = false;
+  bool _isSelectionMode = false;
+  Set<int> _selectedIndexes = {};
+
 
   @override
   void initState() {
@@ -210,6 +213,36 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
       _isFetching = false;
     }
   }
+
+  void _showDeleteDialog() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Delete selected rooms?"),
+        content: const Text("This action cannot be undone."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _selectedIndexes.clear();
+                _isSelectionMode = false;
+              });
+              Navigator.pop(context);
+            },
+            child: const Text(
+              "Delete",
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
 
   @override
   void didChangeDependencies() {
@@ -357,21 +390,51 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Text(
+        _isSelectionMode
+            ? Text(
+          "${_selectedIndexes.length} selected",
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        )
+            : const Text(
           "Usage by room",
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
-        OutlinedButton(
-          onPressed: () async {
-            await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const AddRoom(),
+
+        Row(
+          children: [
+            if (_isSelectionMode && _selectedIndexes.isNotEmpty)
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: _showDeleteDialog,
               ),
-            );
-          },
-          child: const Text("+ Add room"),
-        ),
+            if (!_isSelectionMode)
+              IconButton(
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AddRoom(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.add),
+              ),
+            IconButton(
+              onPressed: () {
+                setState(() {
+                  _isSelectionMode = !_isSelectionMode;
+                  _selectedIndexes.clear();
+                });
+              },
+              icon: Icon(
+                _isSelectionMode ? Icons.close : Icons.more_vert,
+              ),
+            ),
+          ],
+        )
       ],
     );
   }
@@ -408,21 +471,51 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
     return Wrap(
       spacing: 12,
       runSpacing: 12,
-      children: items.map((e) {
+      children: items.asMap().entries.map((entry) {
+        int index = entry.key;
+        var e = entry.value;
         return GestureDetector(
           onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const HomeOfficePage(),
-              ),
-            );
+            if (_isSelectionMode) {
+              setState(() {
+                if (_selectedIndexes.contains(index)) {
+                  _selectedIndexes.remove(index);
+                } else {
+                  _selectedIndexes.add(index);
+                }
+              });
+            } else {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const HomeOfficePage(),
+                ),
+              );
+            }
           },
+          child: Stack(
+            children: [
+              RoomUsageCard(
+                percentage: e["percent"] as int,
+                label: e["name"] as String,
+                imagePath: e["image"] as String,
+              ),
 
-          child: RoomUsageCard(
-            percentage: e["percent"] as int,
-            label: e["name"] as String,
-            imagePath: e["image"] as String,
+              if (_isSelectionMode)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: CircleAvatar(
+                    radius: 12,
+                    backgroundColor: _selectedIndexes.contains(index)
+                        ? Colors.blue
+                        : Colors.white,
+                    child: _selectedIndexes.contains(index)
+                        ? const Icon(Icons.check, size: 14, color: Colors.white)
+                        : null,
+                  ),
+                ),
+            ],
           ),
         );
       }).toList(),
