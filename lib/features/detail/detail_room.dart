@@ -74,25 +74,34 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
     });
   }
   @override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF3F5F9),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            _header(),
-            const SizedBox(height: 12),
-            _deviceTabs(),
-            const SizedBox(height: 12),
-            _mainCard(),
-            const SizedBox(height: 16),
-            _saveButton(),
-            const SizedBox(height: 24),
-          ],
-        ),
+      body: Column(
+        children: [
+          _header(),
+
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  const SizedBox(height: 12),
+                  _deviceTabs(),
+                  const SizedBox(height: 12),
+                  _mainCard(),
+                  const SizedBox(height: 16),
+                  _saveButton(),
+                  const SizedBox(height: 24),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
+
 
   // ================= HEADER =================
   Widget _header() {
