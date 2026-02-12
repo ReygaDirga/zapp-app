@@ -59,10 +59,17 @@ class _ProfilePageState extends State<ProfilePage> {
           .select('username')
           .eq('user_id', currentUser.id)
           .single();
+      
+      final responseFullname = await supabase
+          .from('profiles')
+          .select('fullname')
+          .eq('user_id', currentUser.id)
+          .single();
 
       UserCache.user = currentUser;
       UserCache.email = currentUser.email;
       UserCache.username = response['username'];
+      UserCache.fullname = responseFullname['fullname'];
 
       if (!mounted) return;
       setState(() {

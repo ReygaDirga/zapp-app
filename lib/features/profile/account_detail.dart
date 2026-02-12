@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:zapp/core/cache/user_cache.dart';
 import 'user_info.dart';
 
 class AccountDetailsPage extends StatefulWidget {
@@ -12,6 +15,83 @@ class AccountDetailsPage extends StatefulWidget {
 
 class _AccountDetailsPageState extends State<AccountDetailsPage> {
   File? _imageFile;
+
+  User? user;
+  String? username;
+  String? email;
+  String? fullname;
+  Timer? _retryTimer;
+  bool _isFetching = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserProfile();
+
+    _retryTimer = Timer.periodic(
+      const Duration(seconds: 5),
+          (_) => _loadUserProfile(),
+    );
+  }
+
+  Future<void> _loadUserProfile() async {
+    if (UserCache.isReady) {
+      setState(() {
+        user = UserCache.user;
+        username = UserCache.username;
+        email = UserCache.email;
+        fullname = UserCache.fullname;
+      });
+      return;
+    }
+
+    if (_isFetching) return;
+
+    _isFetching = true;
+    try{
+      final supabase = Supabase.instance.client;
+
+      final currentUser = supabase.auth.currentUser;
+      if (currentUser == null) return;
+
+      final response = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('user_id', currentUser.id)
+          .single();
+      
+      final responseFullname = await supabase
+          .from('profiles')
+          .select('fullname')
+          .eq('user_id', currentUser.id)
+          .single();
+
+      UserCache.user = currentUser;
+      UserCache.email = currentUser.email;
+      UserCache.username = response['username'];
+      UserCache.fullname = responseFullname['fullname'];
+
+      if (!mounted) return;
+      setState(() {
+        user = currentUser;
+        email = currentUser.email;
+        username = response['username'];
+        fullname = responseFullname['fullname'];
+      });
+
+      _retryTimer?.cancel();
+    } catch(e) {
+      debugPrint('Profile Page: fetch failed, will retry...');
+    } finally {
+      _isFetching = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _retryTimer?.cancel();
+    super.dispose();
+  }
 
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
@@ -88,9 +168,9 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
 
           const SizedBox(height: 12),
 
-          const Center(
+          Center(
             child: Text(
-              'Darren SN',
+              username ?? '-',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -132,7 +212,7 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
 
           const SizedBox(height: 12),
 
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -146,7 +226,7 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
                 ),
                 SizedBox(height: 6),
                 Text(
-                  'Darren Samuel Nathan',
+                  fullname ?? '-',
                   style: TextStyle(fontSize: 15),
                 ),
                 SizedBox(height: 20),
@@ -159,7 +239,7 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
                 ),
                 SizedBox(height: 6),
                 Text(
-                  'Darrensamuelnathan@gmail.com',
+                  email ?? '-',
                   style: TextStyle(fontSize: 15),
                 ),
               ],
