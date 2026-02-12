@@ -15,16 +15,15 @@ class _CalculatePage extends State<CalculatePage> {
   final TextEditingController _roomNameController = TextEditingController();
   File? _imageFile;
   DateMode _mode = DateMode.day;
-  DateTime _selectedDate = DateTime(2026, 1, 1);
-  int _selectedMonth = 1;
-  int _selectedYear = 2026;
-
-  final int _startYear = 2015;
-  final int _endYear = 2026;
+  late DateTime _selectedDate;
+  late int _selectedMonth;
+  late int _selectedYear;
+  final now = DateTime.now();
+  int get _currentYear => DateTime.now().year;
   late int _yearPageStart;
   static const int _yearPageSize = 12;
 
-  String selectedRoom = 'Kitchen';
+  String selectedRoom = 'All';
   @override
   void dispose() {
     _roomNameController.dispose();
@@ -34,8 +33,14 @@ class _CalculatePage extends State<CalculatePage> {
   @override
   void initState() {
     super.initState();
-    _yearPageStart = _startYear;
+
+    final now = DateTime.now();
+    _selectedDate = now;
+    _selectedMonth = now.month;
+    _selectedYear = now.year;
+    _yearPageStart = now.year - (_yearPageSize ~/ 2);
   }
+
 
   Widget _segmentedButton() {
     return Container(
@@ -91,10 +96,11 @@ class _CalculatePage extends State<CalculatePage> {
     }
   }
 
-  Widget _buildPicker() {
+  Widget _buildPicker({Key? key}) {
     switch (_mode) {
       case DateMode.day:
         return Column(
+          key: key,
           children: [
             _dayPicker(),
             const SizedBox(height: 25),
@@ -102,6 +108,7 @@ class _CalculatePage extends State<CalculatePage> {
         );
       case DateMode.month:
         return Column(
+          key: key,
           children: [
             _monthPicker(),
             const SizedBox(height: 25),
@@ -109,6 +116,7 @@ class _CalculatePage extends State<CalculatePage> {
         );
       case DateMode.year:
         return Column(
+          key: key,
           children: [
             _yearPicker(),
             const SizedBox(height: 25),
@@ -239,50 +247,55 @@ class _CalculatePage extends State<CalculatePage> {
             childAspectRatio: 1.5,
           ),
           itemBuilder: (_, i) {
+            final now = DateTime.now();
+
             final month = i + 1;
             final isSelected = month == _selectedMonth;
+
+            final isDisabled =
+                _selectedYear > now.year ||
+                    (_selectedYear == now.year && month > now.month);
 
             return _pickerItem(
               label: _monthNames[i],
               isSelected: isSelected,
+              isDisabled: isDisabled,
               onTap: () {
+                if (isDisabled) return;
+
                 setState(() {
                   _selectedMonth = month;
-                  _mode = DateMode.month;
                 });
               },
             );
           },
+
+
         ),
       ],
     );
   }
 
   Widget _yearPicker() {
+    final currentYear = _currentYear;
+
     final years = List.generate(
       _yearPageSize,
           (i) => _yearPageStart + i,
     );
+
     return Column(
       children: [
         _header(
-          title:
-          '${years.first} - ${years.last}',
+          title: '${years.first} - ${years.last}',
           onPrev: () {
             setState(() {
               _yearPageStart -= _yearPageSize;
-              if (_yearPageStart < _startYear) {
-                _yearPageStart = _startYear;
-              }
             });
           },
           onNext: () {
             setState(() {
               _yearPageStart += _yearPageSize;
-              if (_yearPageStart + _yearPageSize - 1 > _endYear) {
-                _yearPageStart =
-                    _endYear - _yearPageSize + 1;
-              }
             });
           },
         ),
@@ -302,18 +315,22 @@ class _CalculatePage extends State<CalculatePage> {
           itemBuilder: (_, i) {
             final year = years[i];
             final isSelected = year == _selectedYear;
+            final isDisabled = year > _currentYear;
 
             return _pickerItem(
               label: year.toString(),
               isSelected: isSelected,
+              isDisabled: isDisabled,
               onTap: () {
+                if (isDisabled) return;
+
                 setState(() {
                   _selectedYear = year;
-                  _mode = DateMode.year;
                 });
               },
             );
           },
+
         ),
       ],
     );
@@ -322,15 +339,20 @@ class _CalculatePage extends State<CalculatePage> {
   Widget _pickerItem({
     required String label,
     required bool isSelected,
+    required bool isDisabled,
     required VoidCallback onTap,
   }) {
     return InkWell(
       borderRadius: BorderRadius.circular(10),
-      onTap: onTap,
+      onTap: isDisabled ? null : onTap,
       child: Container(
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF3F6EB4) : Colors.white,
+          color: isSelected
+              ? const Color(0xFF3F6EB4)
+              : isDisabled
+              ? Colors.grey.shade100
+              : Colors.white,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: isSelected
@@ -345,12 +367,15 @@ class _CalculatePage extends State<CalculatePage> {
             fontWeight: FontWeight.w500,
             color: isSelected
                 ? Colors.white
+                : isDisabled
+                ? Colors.grey
                 : Colors.grey.shade700,
           ),
         ),
       ),
     );
   }
+
 
   Widget _header({
     required String title,
@@ -670,6 +695,7 @@ class _CalculatePage extends State<CalculatePage> {
                   ),
                 ),
                 items: const [
+                  DropdownMenuItem(value: 'All', child: Text('All')),
                   DropdownMenuItem(value: 'Kitchen', child: Text('Kitchen')),
                   DropdownMenuItem(value: 'Bedroom', child: Text('Bedroom')),
                   DropdownMenuItem(value: 'Living Room', child: Text('Living Room')),
@@ -689,8 +715,12 @@ class _CalculatePage extends State<CalculatePage> {
               const SizedBox(height: 8),
               _segmentedButton(),
               const SizedBox(height: 8),
-              AnimatedSwitcher(duration: const Duration(milliseconds: 250), child: _buildPicker()),
-
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                child: _buildPicker(
+                  key: ValueKey(_mode),
+                ),
+              ),
               Row(
                 children: [
                   Expanded(

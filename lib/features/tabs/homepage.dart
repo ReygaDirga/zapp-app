@@ -219,12 +219,12 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: Colors.white,
-        title: const Text("Yakin ingin menghapus ruangan?"),
-        content: const Text("Semua item yang ada di dalam ruangan akan ikut terhapus."),
+        title: const Text("Delete this room?", style: TextStyle(fontWeight: FontWeight.bold),),
+        content: const Text("All items in this room will be permanently deleted."),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel", style: TextStyle(color: Colors.blue),)
+            child: const Text("Cancel", style: TextStyle(color: Colors.grey),)
           ),
           TextButton(
             onPressed: () {
@@ -236,7 +236,7 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
             },
             child: const Text(
               "Delete",
-              style: TextStyle(color: Colors.red),
+              style: TextStyle(color: Color(0xFFF2B599C)),
             ),
           ),
         ],
