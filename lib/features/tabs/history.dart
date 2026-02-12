@@ -412,6 +412,7 @@ class _HistoryState extends State<HistoryPage> {
     required String start,
     required String end,
     required String watt,
+    required String price,
     required Color wattColor,
   }) {
     return Padding(
@@ -460,6 +461,13 @@ class _HistoryState extends State<HistoryPage> {
                 ),
                 Text(
                   'End Time   : $end',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                Text(
+                  'Price   : $price',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey.shade600,
@@ -529,6 +537,7 @@ class _HistoryState extends State<HistoryPage> {
                   start: 'Print Report',
                   end: 'Print Report',
                   watt: 'Print Report',
+                  price: 'Print Report',
                   wattColor: Colors.red,
                 ),
               ],
@@ -588,6 +597,7 @@ class _HistoryState extends State<HistoryPage> {
                   start: '09:00',
                   end: '13:00',
                   watt: '11 watt',
+                  price: 'Rp120.000',
                   wattColor: Colors.red,
                 ),
 
@@ -598,6 +608,7 @@ class _HistoryState extends State<HistoryPage> {
                   start: '09:00',
                   end: '13:00',
                   watt: '13 watt',
+                  price: 'Rp120.000',
                   wattColor: Colors.red,
                 ),
 
@@ -608,6 +619,7 @@ class _HistoryState extends State<HistoryPage> {
                   start: '09:00',
                   end: '13:00',
                   watt: '40 watt',
+                  price: 'Rp120.000',
                   wattColor: Colors.red,
                 ),
 
@@ -618,6 +630,7 @@ class _HistoryState extends State<HistoryPage> {
                   start: '09:00',
                   end: '13:00',
                   watt: '50 watt',
+                  price: 'Rp120.000',
                   wattColor: Colors.red,
                 ),
               ],
@@ -816,6 +829,7 @@ class _HistoryState extends State<HistoryPage> {
                       start: '09:00',
                       end: '13:00',
                       watt: '11 watt',
+                      price: 'Rp120.000',
                       wattColor: Colors.red,
                     ),
                   ],
