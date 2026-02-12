@@ -23,7 +23,19 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
     "Thursday": false,
     "Friday": false,
     "Saturday": false,
+    "Every day": false,
   };
+
+  final dayList = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Every day",
+  ];
 
   List<String> devices = [
     "Lamp",
@@ -74,34 +86,41 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
             "Add New Device",
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
-          content: TextField(
-            controller: deviceController,
-            autofocus: true,
-            decoration: const InputDecoration(
-              labelText: "Enter item name",
-              labelStyle: const TextStyle(
-                color: Colors.black,
+          content: Theme(
+            data: Theme.of(context).copyWith(
+              textSelectionTheme: const TextSelectionThemeData(
+                cursorColor: Color(0xFF2B599C),
+                selectionColor: Color(0x332B599C),
+                selectionHandleColor: Color(0xFF2B599C),
               ),
-              border: OutlineInputBorder(),
-              enabledBorder: OutlineInputBorder(
-                borderSide: BorderSide(
-                  color: Color(0xFFF2B599C),
-                  width: 1.5,
+            ),
+            child: TextField(
+              controller: deviceController,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: "Enter item name",
+                labelStyle: const TextStyle(color: Colors.black),
+                border: const OutlineInputBorder(),
+                enabledBorder: const OutlineInputBorder(
+                  borderSide: BorderSide(
+                    color: Color(0xFF2B599C),
+                    width: 1.5,
+                  ),
                 ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderSide: BorderSide(
-                  color: Color(0xFFF2B599C),
-                  width: 2,
+                focusedBorder: const OutlineInputBorder(
+                  borderSide: BorderSide(
+                    color: Color(0xFF2B599C),
+                    width: 2,
+                  ),
                 ),
               ),
             ),
-
           ),
+
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel", style: TextStyle(color: Colors.red)),
+              child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
             ),
             TextButton(
               onPressed: () {
@@ -286,7 +305,7 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
   // ================= DEVICE TABS =================
   Widget _deviceTabs() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Wrap(
         spacing: 8,
         children: [
@@ -303,6 +322,7 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
     return ChoiceChip(
       label: Text(label),
       selected: isActive,
+      showCheckmark: false,
       selectedColor: Colors.blue[700],
       backgroundColor: Colors.white,
       labelStyle: TextStyle(
@@ -365,19 +385,35 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
                 return Wrap(
                   spacing: 12,
                   runSpacing: 6,
-                  children: days.keys.map((day) {
+                  children: dayList.map((day) {
                     return SizedBox(
                       width: itemWidth,
                       child: Row(
                         children: [
                           Checkbox(
                             value: days[day],
+                            activeColor: const Color(0xFF2B599C),
                             visualDensity: VisualDensity.compact,
                             materialTapTargetSize:
                             MaterialTapTargetSize.shrinkWrap,
                             onChanged: (val) {
-                              setState(() => days[day] = val!);
+                              setState(() {
+                                days[day] = val!;
+
+                                if (day == "Every day") {
+                                  for (var key in days.keys) {
+                                    days[key] = val;
+                                  }
+                                } else {
+                                  final allChecked = days.entries
+                                      .where((e) => e.key != "Every day")
+                                      .every((e) => e.value == true);
+
+                                  days["Every day"] = allChecked;
+                                }
+                              });
                             },
+
                           ),
                           Expanded(
                             child: Text(
