@@ -218,12 +218,13 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text("Delete selected rooms?"),
-        content: const Text("This action cannot be undone."),
+        backgroundColor: Colors.white,
+        title: const Text("Yakin ingin menghapus ruangan?"),
+        content: const Text("Semua item yang ada di dalam ruangan akan ikut terhapus."),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
+            child: const Text("Cancel", style: TextStyle(color: Colors.blue),)
           ),
           TextButton(
             onPressed: () {
