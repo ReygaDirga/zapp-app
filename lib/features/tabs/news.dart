@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/news.dart';
 import '../services/news_service.dart';
-import 'news_detail_page.dart';
+import '../detail/detail_news.dart';
 
 class NewsPage extends StatefulWidget {
   const NewsPage({super.key});
@@ -19,11 +19,11 @@ class _NewsPageState extends State<NewsPage>
   @override
   void initState() {
     super.initState();
-    futureNews = NewsService.fetchNews(); // 🔥 fetch hanya sekali
+    futureNews = NewsService.fetchNews();
   }
 
   @override
-  bool get wantKeepAlive => true; // 🔥 biar ga reload saat balik tab
+  bool get wantKeepAlive => true;
 
   String _formatDate(DateTime date) {
     const months = [
@@ -35,7 +35,7 @@ class _NewsPageState extends State<NewsPage>
 
   @override
   Widget build(BuildContext context) {
-    super.build(context); // 🔥 WAJIB untuk KeepAlive
+    super.build(context); 
 
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
