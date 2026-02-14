@@ -19,6 +19,7 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
   User? user;
   String? username;
   String? email;
+  String? avatarUrl;
   String? fullname;
   Timer? _retryTimer;
   bool _isFetching = false;
@@ -41,6 +42,7 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
         username = UserCache.username;
         email = UserCache.email;
         fullname = UserCache.fullname;
+        avatarUrl = UserCache.avatarUrl;
       });
       return;
     }
@@ -56,27 +58,23 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
 
       final response = await supabase
           .from('profiles')
-          .select('username')
-          .eq('user_id', currentUser.id)
-          .single();
-      
-      final responseFullname = await supabase
-          .from('profiles')
-          .select('fullname')
+          .select('username, fullname, avatar_url')
           .eq('user_id', currentUser.id)
           .single();
 
       UserCache.user = currentUser;
       UserCache.email = currentUser.email;
       UserCache.username = response['username'];
-      UserCache.fullname = responseFullname['fullname'];
+      UserCache.fullname = response['fullname'];
+      UserCache.avatarUrl = response['avatar_url'];
 
       if (!mounted) return;
       setState(() {
         user = currentUser;
         email = currentUser.email;
         username = response['username'];
-        fullname = responseFullname['fullname'];
+        fullname = response['fullname'];
+        avatarUrl = response['avatar_url'];
       });
 
       _retryTimer?.cancel();
@@ -96,12 +94,54 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
     final XFile? picked =
-    await picker.pickImage(source: ImageSource.gallery);
+      await picker.pickImage(source: ImageSource.gallery);
 
-    if (picked != null) {
-      setState(() {
-        _imageFile = File(picked.path);
-      });
+    if (picked == null) return;
+
+    final file = File(picked.path);
+
+    setState(() {
+      _imageFile = file;
+    });
+
+    final supabase = Supabase.instance.client;
+    final currentUser = supabase.auth.currentUser;
+
+    if (currentUser == null) return;
+
+    final fileExt = picked.path.split('.').last;
+    final fileName = '${currentUser.id}_${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+
+    try {
+      if (avatarUrl != null && avatarUrl!.isNotEmpty) {
+        final uri = Uri.parse(avatarUrl!);
+        final oldPath = uri.pathSegments.last;
+        await supabase.storage.from('avatars').remove([oldPath]);
+      }
+
+      await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, fileOptions: const FileOptions(upsert: true));
+
+      final imageUrl = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+
+      await supabase
+        .from('profiles')
+        .update({'avatar_url': imageUrl})
+        .eq('user_id', currentUser.id);
+      
+      UserCache.avatarUrl = imageUrl;
+
+    if (!mounted) return;
+
+    setState(() {
+      avatarUrl = imageUrl;
+      _imageFile = null;
+    });
+    } catch (e) {
+      debugPrint('Upload failed : $e');
     }
   }
 
@@ -140,8 +180,10 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
                   radius: 45,
                   backgroundImage: _imageFile != null
                       ? FileImage(_imageFile!)
-                      : const AssetImage('assets/icon/profile.jpg')
-                  as ImageProvider,
+                      : (avatarUrl != null && avatarUrl!.isNotEmpty
+                        ? NetworkImage(avatarUrl!)
+                        : const AssetImage('assets/icon/profile.jpg'))
+                          as ImageProvider,
                 ),
                 Positioned(
                   bottom: 0,

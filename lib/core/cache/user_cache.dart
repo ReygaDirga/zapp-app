@@ -5,6 +5,7 @@ class UserCache {
   static String? username;
   static String? email;
   static String? fullname;
+  static String? avatarUrl;
 
   static bool get isReady =>
       user != null && username != null && email != null && fullname != null;
@@ -14,5 +15,6 @@ class UserCache {
     username = null;
     email = null;
     fullname = null;
+    avatarUrl = null;
   }
 }

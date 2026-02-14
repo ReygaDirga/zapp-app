@@ -192,20 +192,15 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
 
       final response = await supabase
           .from('profiles')
-          .select('username')
-          .eq('user_id', currentUser.id)
-          .single();
-      
-      final responseFullname = await supabase
-          .from('profiles')
-          .select('fullname')
+          .select('username, fullname, avatar_url')
           .eq('user_id', currentUser.id)
           .single();
 
       UserCache.user = currentUser;
       UserCache.email = currentUser.email;
       UserCache.username = response['username'];
-      UserCache.fullname = responseFullname['fullname'];
+      UserCache.fullname = response['fullname'];
+      UserCache.avatarUrl = response['avatar_url'];
 
       if (!mounted) return;
       setState(() {
@@ -301,17 +296,11 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
           child: CircleAvatar(
             radius: 22,
             backgroundColor: Colors.grey.shade300,
-            child: ClipOval(
-              child: Image.asset(
-                "assets/icon/profile.jpg",
-                width: 44,
-                height: 44,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return const Icon(Icons.person, color: Colors.white);
-                },
-              ),
-            ),
+            backgroundImage: UserCache.avatarUrl != null &&
+              UserCache.avatarUrl!.isNotEmpty
+              ? NetworkImage(UserCache.avatarUrl!)
+              : const AssetImage("assets/icon/profile.jpg")
+              as ImageProvider,
           ),
         ),
         const SizedBox(width: 10),

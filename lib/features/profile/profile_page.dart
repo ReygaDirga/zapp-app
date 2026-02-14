@@ -56,20 +56,15 @@ class _ProfilePageState extends State<ProfilePage> {
 
       final response = await supabase
           .from('profiles')
-          .select('username')
-          .eq('user_id', currentUser.id)
-          .single();
-      
-      final responseFullname = await supabase
-          .from('profiles')
-          .select('fullname')
+          .select('username, fullname, avatar_url')
           .eq('user_id', currentUser.id)
           .single();
 
       UserCache.user = currentUser;
       UserCache.email = currentUser.email;
       UserCache.username = response['username'];
-      UserCache.fullname = responseFullname['fullname'];
+      UserCache.fullname = response['fullname'];
+      UserCache.avatarUrl = response['avatar_url'];
 
       if (!mounted) return;
       setState(() {
@@ -160,11 +155,13 @@ class _ProfilePageState extends State<ProfilePage> {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
                 children: [
-                  const CircleAvatar(
+                  CircleAvatar(
                     radius: 30,
-                    backgroundImage: AssetImage(
-                      'assets/icon/profile.jpg',
-                    ),
+                    backgroundImage: UserCache.avatarUrl != null &&
+                      UserCache.avatarUrl!.isNotEmpty
+                      ? NetworkImage(UserCache.avatarUrl!)
+                      : const AssetImage("assets/icon/profile.jpg")
+                      as ImageProvider,
                   ),
                   const SizedBox(width: 16),
                   Column(
