@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:zapp/features/models/news.dart';
 import 'package:zapp/features/services/news_service.dart';
 import 'package:zapp/features/detail/detail_news.dart';
+import 'dart:async';
 
 class TopCarousel extends StatefulWidget {
   const TopCarousel({super.key});
@@ -15,7 +16,7 @@ class _TopCarouselState extends State<TopCarousel> {
   int currentIndex = 0;
   final PageController controller = PageController();
   bool isLoading = true;
-
+  Timer? _autoSlideTimer;
   @override
   void initState() {
     super.initState();
@@ -32,6 +33,7 @@ class _TopCarouselState extends State<TopCarousel> {
         items = result.take(3).toList();
         isLoading = false;
       });
+      _startAutoSlide();
     } catch (e) {
       debugPrint("Error fetch news: $e");
       if (!mounted) return;
@@ -41,9 +43,31 @@ class _TopCarouselState extends State<TopCarousel> {
 
   @override
   void dispose() {
+    _autoSlideTimer?.cancel();
     controller.dispose();
     super.dispose();
   }
+
+  void _startAutoSlide() {
+    _autoSlideTimer?.cancel();
+
+    _autoSlideTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      if (!mounted || items.isEmpty) return;
+
+      int nextPage = currentIndex + 1;
+
+      if (nextPage >= items.length) {
+        nextPage = 0;
+      }
+
+      controller.animateToPage(
+        nextPage,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
+    });
+  }
+
 
   @override
   Widget build(BuildContext context) {
