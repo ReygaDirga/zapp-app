@@ -128,16 +128,19 @@ class _NewsPageState extends State<NewsPage>
                               ),
                               const SizedBox(height: 8),
                               Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
-                                    news.author,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey,
+                                  Expanded(
+                                    child: Text(
+                                      news.author,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey,
+                                      ),
                                     ),
                                   ),
+                                  const SizedBox(width: 8),
                                   Text(
                                     _formatDate(news.publishedAt),
                                     style: const TextStyle(
@@ -146,7 +149,8 @@ class _NewsPageState extends State<NewsPage>
                                     ),
                                   ),
                                 ],
-                              ),
+                              )
+
                             ],
                           ),
                         ),

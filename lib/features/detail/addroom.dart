@@ -74,7 +74,6 @@ class _AddRoomPageState extends State<AddRoom> {
           TextField(
             controller: _roomNameController,
             decoration: InputDecoration(
-              hintText: "Room name",
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
