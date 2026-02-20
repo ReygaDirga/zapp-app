@@ -2,6 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:zapp/core/components/layout.dart';
+import 'package:zapp/features/detail/apiclient.dart';
+import 'package:dio/dio.dart';
+
 
 class AddRoom extends StatefulWidget {
   const AddRoom({super.key});
@@ -32,21 +35,54 @@ class _AddRoomPageState extends State<AddRoom> {
     }
   }
 
-  void _saveRoom() {
-    final roomName = _roomNameController.text.trim();
+  Future<void> _saveRoom() async {
+  final roomName = _roomNameController.text.trim();
 
-    if (roomName.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Room name cannot be empty")),
-      );
-      return;
-    }
-
-    Navigator.pop(context, {
-      "name": roomName,
-      "image": _imageFile?.path,
-    });
+  if (roomName.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Room name cannot be empty")),
+    );
+    return;
   }
+
+  try {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    await ApiClient.dio.post(
+      '/rooms',
+      data: {
+        "name": roomName,
+      },
+    );
+
+    Navigator.pop(context); // close loading
+    Navigator.pop(context, true); // back
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Room added successfully")),
+    );
+  } on DioError catch (e) {
+    Navigator.pop(context);
+
+    debugPrint("STATUS: ${e.response?.statusCode}");
+    debugPrint("DATA: ${e.response?.data}");
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          e.response?.data.toString() ?? "Failed to add room",
+        ),
+      ),
+    );
+  }
+}
+
+
+
 
   @override
   Widget build(BuildContext context) {
