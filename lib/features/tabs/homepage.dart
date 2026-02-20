@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
+import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:zapp/core/cache/user_cache.dart';
 import 'package:zapp/features/support/notifications.dart';
@@ -9,12 +9,15 @@ import 'package:zapp/features/profile/profile_page.dart';
 import 'package:zapp/routes/route_observer.dart';
 import 'package:zapp/core/components/carousel.dart';
 import 'package:zapp/core/components/room_cart.dart';
+
 import 'calculate.dart';
 import 'history.dart';
 import 'news.dart';
+
 import 'package:zapp/features/detail/addroom.dart';
 import 'package:zapp/features/detail/detail_room.dart';
-
+import 'package:zapp/features/detail/apiclient.dart';
+import 'package:zapp/features/detail/delroom.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -25,13 +28,6 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
-
-  final List<Widget> _pages = const [
-    HomeContent(),
-    CalculatePage(),
-    HistoryPage(),
-    NewsPage(),
-  ];
 
   Widget _navItem(IconData icon, String label, int index) {
     final bool isActive = _currentIndex == index;
@@ -61,14 +57,14 @@ class _HomePageState extends State<HomePage> {
           },
           child: isActive
               ? Text(
-            label,
-            key: ValueKey(label),
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Colors.blue,
-            ),
-          )
+                  label,
+                  key: ValueKey(label),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.blue,
+                  ),
+                )
               : const SizedBox.shrink(),
         ),
       ],
@@ -86,8 +82,8 @@ class _HomePageState extends State<HomePage> {
           CalculatePage(),
           HistoryPage(),
           NewsPage(),
-  ],
-),
+        ],
+      ),
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: Colors.white,
         currentIndex: _currentIndex,
@@ -132,23 +128,28 @@ class HomeContent extends StatefulWidget {
 class _HomeContentState extends State<HomeContent> with RouteAware {
   String? username;
   User? user;
+
   Timer? _retryTimer;
   bool _isFetching = false;
-  bool _isSelectionMode = false;
-  Set<int> _selectedIndexes = {};
 
+  bool _isSelectionMode = false;
+  final Set<int> _selectedIndexes = {};
+
+  // ✅ Rooms state
+  late Future<List<dynamic>> _futureRooms;
 
   @override
   void initState() {
     super.initState();
     _loadUsername();
+    _futureRooms = _fetchRooms();
   }
 
   void _startRetryTimer() {
     _retryTimer?.cancel();
     _retryTimer = Timer.periodic(
       const Duration(seconds: 5),
-          (_) => _loadUsername(),
+      (_) => _loadUsername(),
     );
   }
 
@@ -181,12 +182,10 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
     }
 
     if (_isFetching) return;
-
     _isFetching = true;
 
     try {
       final supabase = Supabase.instance.client;
-
       final currentUser = supabase.auth.currentUser;
       if (currentUser == null) return;
 
@@ -209,48 +208,138 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
       });
 
       _retryTimer?.cancel();
-    } catch (e) {
+    } catch (_) {
       debugPrint('Homepage: fetch failed, will retry...');
     } finally {
       _isFetching = false;
     }
   }
 
-  void _showDeleteDialog() {
-    showDialog(
+  // ✅ Fetch rooms from backend
+  Future<List<dynamic>> _fetchRooms() async {
+    final res = await ApiClient.dio.get('/rooms');
+    final data = res.data;
+
+    // API returns List
+    if (data is List) return data;
+
+    // API returns { data: [...] }
+    if (data is Map && data['data'] is List) return data['data'] as List;
+
+    return [];
+  }
+
+  void _refreshRooms() {
+    setState(() {
+      _futureRooms = _fetchRooms();
+      _selectedIndexes.clear();
+      _isSelectionMode = false;
+    });
+  }
+
+  void _toggleSelectionMode() {
+    setState(() {
+      _isSelectionMode = !_isSelectionMode;
+      _selectedIndexes.clear();
+    });
+  }
+
+  Future<void> _deleteSelectedRooms(List<dynamic> rooms) async {
+    if (_selectedIndexes.isEmpty) return;
+
+    final selectedRooms = _selectedIndexes
+        .map((i) => rooms[i])
+        .whereType<Map>()
+        .toList();
+
+    if (selectedRooms.isEmpty) return;
+
+    // For simplicity: delete one-by-one via DeleteRoomPage flow OR direct DELETE calls.
+    // Here: if 1 selected -> open DeleteRoomPage; if many -> delete sequentially via API.
+    if (selectedRooms.length == 1) {
+      final room = selectedRooms.first;
+      final roomId = (room['id'] ?? room['room_id'] ?? '').toString();
+      final roomName = (room['name'] ?? '-').toString();
+
+      if (roomId.isEmpty) return;
+
+      final result = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DeleteRoomPage(
+            roomId: roomId,
+            roomName: roomName,
+          ),
+        ),
+      );
+
+      if (result == true) _refreshRooms();
+      return;
+    }
+
+    // Multi delete confirm
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: Colors.white,
-        title: const Text("Delete this room?", style: TextStyle(fontWeight: FontWeight.bold),),
-        content: const Text("All items in this room will be permanently deleted."),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          "Delete rooms?",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          "You are about to delete ${selectedRooms.length} rooms. This action cannot be undone.",
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel", style: TextStyle(color: Colors.grey),)
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
           ),
           TextButton(
-            onPressed: () {
-              setState(() {
-                _selectedIndexes.clear();
-                _isSelectionMode = false;
-              });
-              Navigator.pop(context);
-            },
-            child: const Text(
-              "Delete",
-              style: TextStyle(color: Color(0xFFF2B599C)),
-            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Delete", style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
     );
-  }
 
+    if (confirmed != true) return;
+
+    // Delete sequentially
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()),
+      );
+
+      for (final room in selectedRooms) {
+        final roomId = (room['id'] ?? room['room_id'] ?? '').toString();
+        if (roomId.isEmpty) continue;
+        await ApiClient.dio.delete('/rooms/$roomId');
+      }
+
+      if (!mounted) return;
+      Navigator.pop(context); // close loading
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Rooms deleted successfully")),
+      );
+      _refreshRooms();
+    } catch (e) {
+      if (mounted) Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to delete rooms: $e")),
+      );
+    }
+  }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    routeObserver.subscribe(this, ModalRoute.of(context)! as PageRoute);
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      routeObserver.subscribe(this, route);
+    }
   }
 
   @override
@@ -288,19 +377,16 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) => const ProfilePage(),
-              ),
+              MaterialPageRoute(builder: (_) => const ProfilePage()),
             );
           },
           child: CircleAvatar(
             radius: 22,
             backgroundColor: Colors.grey.shade300,
             backgroundImage: UserCache.avatarUrl != null &&
-              UserCache.avatarUrl!.isNotEmpty
-              ? NetworkImage(UserCache.avatarUrl!)
-              : const AssetImage("assets/icon/profile.jpg")
-              as ImageProvider,
+                    UserCache.avatarUrl!.isNotEmpty
+                ? NetworkImage(UserCache.avatarUrl!)
+                : const AssetImage("assets/icon/profile.jpg") as ImageProvider,
           ),
         ),
         const SizedBox(width: 10),
@@ -316,54 +402,54 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
                   animatedTexts: [
                     TyperAnimatedText("Hi",
                         textStyle:
-                        const TextStyle(fontSize: 14, color: Colors.grey)),
+                            const TextStyle(fontSize: 14, color: Colors.grey)),
                     TyperAnimatedText("Halo",
                         textStyle:
-                        const TextStyle(fontSize: 14, color: Colors.grey)),
+                            const TextStyle(fontSize: 14, color: Colors.grey)),
                     TyperAnimatedText("Bonjour",
                         textStyle:
-                        const TextStyle(fontSize: 14, color: Colors.grey)),
+                            const TextStyle(fontSize: 14, color: Colors.grey)),
                     TyperAnimatedText("Hola",
                         textStyle:
-                        const TextStyle(fontSize: 14, color: Colors.grey)),
+                            const TextStyle(fontSize: 14, color: Colors.grey)),
                     TyperAnimatedText("Aloha",
                         textStyle:
-                        const TextStyle(fontSize: 14, color: Colors.grey)),
+                            const TextStyle(fontSize: 14, color: Colors.grey)),
                     TyperAnimatedText("您好",
                         textStyle:
-                        const TextStyle(fontSize: 14, color: Colors.grey)),
+                            const TextStyle(fontSize: 14, color: Colors.grey)),
                     TyperAnimatedText("こんにちは",
                         textStyle:
-                        const TextStyle(fontSize: 14, color: Colors.grey)),
+                            const TextStyle(fontSize: 14, color: Colors.grey)),
                     TyperAnimatedText("안녕하세요",
                         textStyle:
-                        const TextStyle(fontSize: 14, color: Colors.grey)),
+                            const TextStyle(fontSize: 14, color: Colors.grey)),
                     TyperAnimatedText("Zdravstvuyte",
                         textStyle:
-                        const TextStyle(fontSize: 14, color: Colors.grey)),
+                            const TextStyle(fontSize: 14, color: Colors.grey)),
                     TyperAnimatedText("Sàwàtdee",
                         textStyle:
-                        const TextStyle(fontSize: 14, color: Colors.grey)),
+                            const TextStyle(fontSize: 14, color: Colors.grey)),
                     TyperAnimatedText("Guten Tag",
                         textStyle:
-                        const TextStyle(fontSize: 14, color: Colors.grey)),
+                            const TextStyle(fontSize: 14, color: Colors.grey)),
                     TyperAnimatedText("Ciao",
                         textStyle:
-                        const TextStyle(fontSize: 14, color: Colors.grey)),
+                            const TextStyle(fontSize: 14, color: Colors.grey)),
                     TyperAnimatedText("مرحبا",
                         textStyle:
-                        const TextStyle(fontSize: 14, color: Colors.grey)),
+                            const TextStyle(fontSize: 14, color: Colors.grey)),
                     TyperAnimatedText("Olá",
                         textStyle:
-                        const TextStyle(fontSize: 14, color: Colors.grey)),
+                            const TextStyle(fontSize: 14, color: Colors.grey)),
                   ],
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 username ?? '-',
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 16),
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
             ],
           ),
@@ -373,9 +459,7 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
           onPressed: () {
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) => const NotificationsPage(),
-              ),
+              MaterialPageRoute(builder: (_) => const NotificationsPage()),
             );
           },
         )
@@ -384,138 +468,150 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
   }
 
   Widget _usageHeader(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        _isSelectionMode
-            ? Text(
-          "${_selectedIndexes.length} selected",
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
-        )
-            : const Text(
-          "Usage by room",
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
+    return FutureBuilder<List<dynamic>>(
+      future: _futureRooms,
+      builder: (context, snapshot) {
+        final rooms = snapshot.data ?? [];
 
-        Row(
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            if (_isSelectionMode && _selectedIndexes.isNotEmpty)
-              IconButton(
-                icon: const Icon(Icons.delete, color: Colors.red),
-                onPressed: _showDeleteDialog,
-              ),
-            if (!_isSelectionMode)
-              IconButton(
-                onPressed: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AddRoom(),
+            _isSelectionMode
+                ? Text(
+                    "${_selectedIndexes.length} selected",
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
                     ),
-                  );
-                },
-                icon: const Icon(Icons.add),
-              ),
-            IconButton(
-              onPressed: () {
-                setState(() {
-                  _isSelectionMode = !_isSelectionMode;
-                  _selectedIndexes.clear();
-                });
-              },
-              icon: Icon(
-                _isSelectionMode ? Icons.close : Icons.more_vert,
-              ),
+                  )
+                : const Text(
+                    "Usage by room",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+            Row(
+              children: [
+                if (_isSelectionMode && _selectedIndexes.isNotEmpty)
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: () => _deleteSelectedRooms(rooms),
+                  ),
+                if (!_isSelectionMode)
+                  IconButton(
+                    onPressed: () async {
+                      final result = await Navigator.push<bool>(
+                        context,
+                        MaterialPageRoute(builder: (_) => const AddRoom()),
+                      );
+                      if (result == true) _refreshRooms();
+                    },
+                    icon: const Icon(Icons.add),
+                  ),
+                IconButton(
+                  onPressed: _toggleSelectionMode,
+                  icon: Icon(_isSelectionMode ? Icons.close : Icons.more_vert),
+                ),
+              ],
             ),
           ],
-        )
-      ],
+        );
+      },
     );
   }
 
   Widget _roomGrid() {
-    final items = [
-      {
-        "percent": 12,
-        "name": "Kitchen",
-        "image": "assets/images/kitchen.jpg",
-      },
-      {
-        "percent": 24,
-        "name": "Home Office",
-        "image": "assets/images/home_office.jpg",
-      },
-      {
-        "percent": 9,
-        "name": "Bedroom",
-        "image": "assets/images/bedroom.jpg",
-      },
-      {
-        "percent": 11,
-        "name": "Bathroom",
-        "image": "assets/images/bathroom.jpg",
-      },
-      {
-        "percent": 100,
-        "name": "Gaming room",
-        "image": "assets/images/gaming_room.jpg",
-      },
-    ];
+    return FutureBuilder<List<dynamic>>(
+      future: _futureRooms,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.only(top: 24),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
 
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      children: items.asMap().entries.map((entry) {
-        int index = entry.key;
-        var e = entry.value;
-        return GestureDetector(
-          onTap: () {
-            if (_isSelectionMode) {
-              setState(() {
-                if (_selectedIndexes.contains(index)) {
-                  _selectedIndexes.remove(index);
+        if (snapshot.hasError) {
+          return Text(snapshot.error.toString());
+        }
+
+        final rooms = snapshot.data ?? [];
+
+        if (rooms.isEmpty) {
+          return const Text("No rooms yet. Add your first room.");
+        }
+
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: rooms.asMap().entries.map((entry) {
+            final index = entry.key;
+            final room = entry.value;
+
+            final roomMap = room is Map ? room : <String, dynamic>{};
+
+            final roomName = (roomMap['name'] ?? '-').toString();
+            final roomId = (roomMap['id'] ?? roomMap['room_id'] ?? '').toString();
+
+            return GestureDetector(
+              onTap: () async {
+                if (_isSelectionMode) {
+                  setState(() {
+                    if (_selectedIndexes.contains(index)) {
+                      _selectedIndexes.remove(index);
+                    } else {
+                      _selectedIndexes.add(index);
+                    }
+                  });
                 } else {
-                  _selectedIndexes.add(index);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const HomeOfficePage()),
+                  );
                 }
-              });
-            } else {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const HomeOfficePage(),
-                ),
-              );
-            }
-          },
-          child: Stack(
-            children: [
-              RoomUsageCard(
-                percentage: e["percent"] as int,
-                label: e["name"] as String,
-                imagePath: e["image"] as String,
-              ),
+              },
+              onLongPress: () async {
+                // Long press: open delete page for single room
+                if (roomId.isEmpty) return;
 
-              if (_isSelectionMode)
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: CircleAvatar(
-                    radius: 12,
-                    backgroundColor: _selectedIndexes.contains(index)
-                        ? Colors.blue
-                        : Colors.white,
-                    child: _selectedIndexes.contains(index)
-                        ? const Icon(Icons.check, size: 14, color: Colors.white)
-                        : null,
+                final result = await Navigator.push<bool>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => DeleteRoomPage(
+                      roomId: roomId,
+                      roomName: roomName,
+                    ),
                   ),
-                ),
-            ],
-          ),
+                );
+
+                if (result == true) _refreshRooms();
+              },
+              child: Stack(
+                children: [
+                  RoomUsageCard(
+                    percentage: 0,
+                    label: roomName,
+                    imagePath: "assets/images/home_office.jpg",
+                  ),
+                  if (_isSelectionMode)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: CircleAvatar(
+                        radius: 12,
+                        backgroundColor:
+                            _selectedIndexes.contains(index) ? Colors.blue : Colors.white,
+                        child: _selectedIndexes.contains(index)
+                            ? const Icon(Icons.check, size: 14, color: Colors.white)
+                            : null,
+                      ),
+                    ),
+                ],
+              ),
+            );
+          }).toList(),
         );
-      }).toList(),
+      },
     );
   }
 }
