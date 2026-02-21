@@ -28,7 +28,7 @@ class UsageItem {
       startTime: json['startTime'] ?? '',
       endTime: json['endTime'] ?? '',
       usageWatt: json['usageWatt'] ?? 0,
-      totalCost: json['totalCost'] ?? 0,
+      totalCost: (json['totalCost'] as num?)?.toDouble() ?? 0,
     );
   }
 }
