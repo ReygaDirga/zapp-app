@@ -750,7 +750,7 @@ class _HistoryState extends State<HistoryPage> {
                           ? const Padding(
                               padding: EdgeInsets.all(20),
                               child:
-                                  Center(child: Text("There isn't any item!")),
+                                  Center(child: Text("No items found.")),
                             )
                           : ListView.separated(
                               shrinkWrap: true,
@@ -972,7 +972,7 @@ class _HistoryState extends State<HistoryPage> {
                       : itemList.isEmpty
                         ? const Padding(
                             padding: EdgeInsets.all(16),
-                            child: Text("There isn't any item!"),
+                            child: Text("No items found."),
                           )
                           : _historyItem(
                             title: itemList.first.name,

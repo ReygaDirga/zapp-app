@@ -725,7 +725,7 @@ class _SimulationState extends State<SimulationPage> {
                           ? const Padding(
                               padding: EdgeInsets.all(20),
                               child:
-                                  Center(child: Text("There isn't any item!")),
+                                  Center(child: Text("No items found.")),
                             )
                           : ListView.separated(
                               shrinkWrap: true,
@@ -947,7 +947,7 @@ class _SimulationState extends State<SimulationPage> {
                       : itemList.isEmpty
                         ? const Padding(
                             padding: EdgeInsets.all(16),
-                            child: Text("There isn't any item!"),
+                            child: Text("No items found."),
                           )
                           : _simulationItem(
                             title: itemList.first.name,
