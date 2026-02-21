@@ -1,7 +1,12 @@
 import 'dart:io';
-import 'package:flutter/cupertino.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:zapp/features/detail/apiclient.dart';
+import 'package:zapp/features/models/usage_item.dart';
+import 'package:zapp/features/models/room.dart';
 enum DateMode { day, month, year }
 
 class HistoryPage extends StatefulWidget {
@@ -13,7 +18,6 @@ class HistoryPage extends StatefulWidget {
 
 class _HistoryState extends State<HistoryPage> {
   final TextEditingController _roomNameController = TextEditingController();
-  File? _imageFile;
   DateMode _mode = DateMode.day;
   late DateTime _selectedDate;
   late int _selectedMonth;
@@ -24,7 +28,100 @@ class _HistoryState extends State<HistoryPage> {
   late int _yearPageStart;
   static const int _yearPageSize = 12;
 
-  String selectedRoom = 'All';
+  double totalWatt = 0;
+  double totalCost = 0;
+
+  final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp');
+  final numberFormatter = NumberFormat('#,###', 'id_ID');
+
+  String capitalize(String text) {
+  if (text.isEmpty) return text;
+  return text[0].toUpperCase() + text.substring(1);
+}
+
+  List<UsageItem> itemList = [];
+  bool isLoading = false;
+  Future<void> fetchUsage() async {
+    try {
+      setState(() {
+        isLoading = true;
+        itemList = [];
+        totalCost = 0;
+        totalWatt = 0;
+      });
+
+      final Map<String, dynamic> query = {
+        "mode": "history",
+        "range": _mode.name,
+        "date": _selectedDate.toIso8601String().split('T').first,
+      };
+
+      if (selectedRoom != null) {
+        query["roomId"] = selectedRoom;
+      }
+
+      final response = await ApiClient.dio.get(
+        '/usage',
+        queryParameters: query,
+      );
+
+      final Map<String, dynamic> json = response.data;
+
+      final List rooms = json["rooms"] ?? [];
+
+      final double fetchedTotalWatt = (json["totalWatt"] ?? 0).toDouble();
+      final double fetchedTotalCost = (json["totalCost"] ?? 0).toDouble();
+
+      List<UsageItem> allItems = [];
+
+      for (var room in rooms) {
+        final List items = room["items"] ?? [];
+        allItems.addAll(
+          items.map((e) => UsageItem.fromJson(e)).toList(),
+        );
+      }
+
+      setState(() {
+        itemList = allItems;
+        totalWatt = fetchedTotalWatt;
+        totalCost = fetchedTotalCost;
+      });
+    } catch (e) {
+      print(e);
+
+      setState(() {
+        itemList = [];
+        totalCost = 0;
+        totalWatt = 0;
+      });
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  List<Room> roomList = [];
+  String? selectedRoom;
+  bool isRoomLoading = false;
+  Future<void> fetchRooms() async {
+  try {
+    setState(() => isRoomLoading = true);
+
+    final response = await ApiClient.dio.get('/rooms');
+
+    final data = response.data as List;
+
+    setState(() {
+      roomList = data.map((e) => Room.fromJson(e)).toList();
+    });
+  } catch (e) {
+      print(e);
+  } finally {
+    setState(() => isRoomLoading = false);
+  }
+}
+
   @override
   void dispose() {
     _roomNameController.dispose();
@@ -40,8 +137,10 @@ class _HistoryState extends State<HistoryPage> {
     _selectedMonth = now.month;
     _selectedYear = now.year;
     _yearPageStart = now.year - (_yearPageSize ~/ 2);
-  }
 
+    fetchRooms();
+    fetchUsage();
+  }
 
   Widget _segmentedButton() {
     return Container(
@@ -61,6 +160,7 @@ class _HistoryState extends State<HistoryPage> {
                 setState(() {
                   _mode = mode;
                 });
+                fetchUsage();
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
@@ -143,7 +243,11 @@ class _HistoryState extends State<HistoryPage> {
               } else {
                 _selectedMonth--;
               }
+
+              _selectedDate = DateTime(_selectedYear, _selectedMonth, 1);
             });
+
+            fetchUsage();
           },
           onNext: () {
             setState(() {
@@ -153,7 +257,11 @@ class _HistoryState extends State<HistoryPage> {
               } else {
                 _selectedMonth++;
               }
+
+              _selectedDate = DateTime(_selectedYear, _selectedMonth, 1);
             });
+
+            fetchUsage();
           },
         ),
         const SizedBox(height: 8),
@@ -177,6 +285,18 @@ class _HistoryState extends State<HistoryPage> {
 
             final day = index - startOffset + 1;
 
+            final currentDate = DateTime.now();
+
+            final candidateDate = DateTime(
+              _selectedYear,
+              _selectedMonth,
+              day,
+            );
+
+            final isDisabled = candidateDate.isAfter(
+              DateTime(currentDate.year, currentDate.month, currentDate.day),
+            );
+
             final isSelected =
                 _selectedDate.year == _selectedYear &&
                     _selectedDate.month == _selectedMonth &&
@@ -184,14 +304,17 @@ class _HistoryState extends State<HistoryPage> {
 
             return InkWell(
               borderRadius: BorderRadius.circular(12),
-              onTap: () {
-                setState(() {
-                  _selectedDate = DateTime(
-                    _selectedYear,
-                    _selectedMonth,
-                    day,
-                  );
-                });
+              onTap: isDisabled 
+                ? null
+                : () {
+                  setState(() {
+                    _selectedDate = DateTime(
+                      _selectedYear,
+                      _selectedMonth,
+                      day,
+                    );
+                  });
+                  fetchUsage();
               },
               child: Container(
                 alignment: Alignment.center,
@@ -204,7 +327,7 @@ class _HistoryState extends State<HistoryPage> {
                 child: Text(
                   '$day',
                   style: TextStyle(
-                    color: isSelected ? Colors.white : Colors.black,
+                    color: isSelected ? Colors.white : isDisabled ? Colors.grey : Colors.black,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -263,7 +386,11 @@ class _HistoryState extends State<HistoryPage> {
 
                 setState(() {
                   _selectedMonth = month;
+
+                  _selectedDate = DateTime(_selectedYear, month, 1);
                 });
+
+                fetchUsage();
               },
             );
           },
@@ -275,8 +402,6 @@ class _HistoryState extends State<HistoryPage> {
   }
 
   Widget _yearPicker() {
-    final currentYear = _currentYear;
-
     final years = List.generate(
       _yearPageSize,
           (i) => _yearPageStart + i,
@@ -324,7 +449,11 @@ class _HistoryState extends State<HistoryPage> {
 
                 setState(() {
                   _selectedYear = year;
+
+                  _selectedDate = DateTime(year, 1, 1);
                 });
+
+                fetchUsage();
               },
             );
           },
@@ -512,85 +641,84 @@ class _HistoryState extends State<HistoryPage> {
     );
   }
 
-  void _printreport() {
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (context) {
-        return Dialog(
-          insetPadding: const EdgeInsets.symmetric(horizontal: 20),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Print Report',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    InkWell(
-                      onTap: () => Navigator.pop(context),
-                      child: Icon(
-                        Icons.close,
-                        size: 20,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
-                ),
+  Future<void> _printreport() async {
+    try {
+      setState(() {
+        isLoading = true;
+      });
 
-                Divider(color: Colors.grey.shade300),
-                _historyItem(
-                  title: 'Print Report',
-                  days: 'Print Report',
-                  start: 'Print Report',
-                  end: 'Print Report',
-                  watt: 'Print Report',
-                  price: 'Print Report',
-                  wattColor: Colors.red,
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+      final Map<String, dynamic> query = {
+        "mode": "history",
+        "range": _mode.name,
+        "date": _selectedDate.toIso8601String().split('T').first,
+      };
+
+      if (selectedRoom != null) {
+        query["roomId"] = selectedRoom;
+      }
+
+      final response = await ApiClient.dio.get(
+        '/usage/pdf',
+        queryParameters: query,
+        options: Options(responseType: ResponseType.bytes),
+      );
+
+      String filename = "report.pdf";
+
+      final contentDisposition = 
+        response.headers.value("content-disposition");
+
+      if (contentDisposition != null) {
+        final regex = RegExp(r'filename="?([^\";]+)"?');
+        final match = regex.firstMatch(contentDisposition);
+        if (match != null) {
+          filename = match.group(1)!;
+        }
+      }
+      filename = filename.replaceAll('"', '');
+      if (!filename.toLowerCase().endsWith(".pdf")) {
+        filename = "$filename.pdf";
+      }
+
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File("${dir.path}/$filename");
+      await file.writeAsBytes(response.data);
+
+      await OpenFilex.open(file.path);
+
+      // await OpenFilex.open(file.path);
+    } catch (e) {
+      print(e);
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
   void _showHistoryPopup() {
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (context) {
-        return Dialog(
-          insetPadding: const EdgeInsets.symmetric(horizontal: 20),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+  showDialog(
+    context: context,
+    barrierDismissible: true,
+    builder: (context) {
+      return Dialog(
+        backgroundColor: Colors.white,
+        insetPadding:
+            const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.7,
           ),
-          child: Container(
+          child: Padding(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-            ),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize: MainAxisSize.min, // 🔥 penting
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                /// HEADER
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -603,66 +731,54 @@ class _HistoryState extends State<HistoryPage> {
                     ),
                     InkWell(
                       onTap: () => Navigator.pop(context),
-                      child: Icon(
-                        Icons.close,
-                        size: 20,
-                        color: Colors.grey.shade600,
-                      ),
+                      child: const Icon(Icons.close, size: 20),
                     ),
                   ],
                 ),
 
                 const SizedBox(height: 12),
                 Divider(color: Colors.grey.shade300),
-                _historyItem(
-                  title: 'Washing machine',
-                  days: 'Monday, Tuesday, Wednesday',
-                  start: '09:00',
-                  end: '13:00',
-                  watt: '11 watt',
-                  price: 'Rp120.000',
-                  wattColor: Colors.red,
-                ),
 
-                Divider(color: Colors.grey.shade300),
-                _historyItem(
-                  title: 'Refrigerator',
-                  days: 'Every days',
-                  start: '09:00',
-                  end: '13:00',
-                  watt: '13 watt',
-                  price: 'Rp120.000',
-                  wattColor: Colors.red,
-                ),
-
-                Divider(color: Colors.grey.shade300),
-                _historyItem(
-                  title: 'Air Conditioner',
-                  days: 'Every days',
-                  start: '09:00',
-                  end: '13:00',
-                  watt: '40 watt',
-                  price: 'Rp120.000',
-                  wattColor: Colors.red,
-                ),
-
-                Divider(color: Colors.grey.shade300),
-                _historyItem(
-                  title: 'Lamp',
-                  days: 'Every days',
-                  start: '09:00',
-                  end: '13:00',
-                  watt: '50 watt',
-                  price: 'Rp120.000',
-                  wattColor: Colors.red,
+                /// CONTENT
+                Flexible(
+                  child: isLoading
+                      ? const Padding(
+                          padding: EdgeInsets.all(20),
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      : itemList.isEmpty
+                          ? const Padding(
+                              padding: EdgeInsets.all(20),
+                              child:
+                                  Center(child: Text("There isn't any item!")),
+                            )
+                          : ListView.separated(
+                              shrinkWrap: true,
+                              itemCount: itemList.length,
+                              separatorBuilder: (_, __) =>
+                                  Divider(color: Colors.grey.shade300),
+                              itemBuilder: (_, index) {
+                                final item = itemList[index];
+                                return _historyItem(
+                                  title: item.name,
+                                  days: item.usageDays.map((d) => capitalize(d)).join(', '),
+                                  start: item.startTime,
+                                  end: item.endTime,
+                                  watt: '${item.usageWatt} watt',
+                                  price: '${currencyFormatter.format(item.totalCost)}',
+                                  wattColor: Colors.red,
+                                );
+                              },
+                            ),
                 ),
               ],
             ),
           ),
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -680,7 +796,7 @@ class _HistoryState extends State<HistoryPage> {
               ),
               const SizedBox(height: 8),
 
-              DropdownButtonFormField<String>(
+              DropdownButtonFormField<String?>(
                 dropdownColor: Colors.white,
                 value: selectedRoom,
                 isExpanded: true,
@@ -692,16 +808,18 @@ class _HistoryState extends State<HistoryPage> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                items: const [
-                  DropdownMenuItem(value: 'All', child: Text('All')),
-                  DropdownMenuItem(value: 'Kitchen', child: Text('Kitchen')),
-                  DropdownMenuItem(value: 'Bedroom', child: Text('Bedroom')),
-                  DropdownMenuItem(value: 'Living Room', child: Text('Living Room')),
+                items: [
+                  const DropdownMenuItem<String?>(value: null, child: Text('All')),
+                  ...roomList.map((room) {
+                    return DropdownMenuItem<String?>(value: room.roomId, child: Text(room.name));
+                  }).toList(),
                 ],
                 onChanged: (value) {
                   setState(() {
-                    selectedRoom = value!;
+                    selectedRoom = value;
                   });
+
+                  fetchUsage();
                 },
               ),
 
@@ -730,7 +848,7 @@ class _HistoryState extends State<HistoryPage> {
                           const SizedBox(width: 10),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: const [
+                            children: [
                               Text(
                                 'Total Watt',
                                 style: TextStyle(
@@ -740,7 +858,7 @@ class _HistoryState extends State<HistoryPage> {
                               ),
                               SizedBox(height: 4),
                               Text(
-                                '70 watt',
+                                '${numberFormatter.format(totalWatt)} Watt',
                                 style: TextStyle(
                                   color: Colors.white70,
                                   fontSize: 12,
@@ -768,7 +886,7 @@ class _HistoryState extends State<HistoryPage> {
                           const SizedBox(width: 10),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: const [
+                            children: [
                               Text(
                                 'Total Cost',
                                 style: TextStyle(
@@ -778,7 +896,7 @@ class _HistoryState extends State<HistoryPage> {
                               ),
                               SizedBox(height: 4),
                               Text(
-                                'Rp107.000,00',
+                                currencyFormatter.format(totalCost),
                                 style: TextStyle(
                                   color: Colors.white70,
                                   fontSize: 12,
@@ -815,13 +933,13 @@ class _HistoryState extends State<HistoryPage> {
                         ),
                         InkWell(
                           onTap: () {
-                            _printreport();
+                            isLoading ? null : _printreport();
                           },
                           child: Text(
                             'Print Report',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.blue.shade700,
+                              color: isLoading ? Colors.grey : Colors.blue.shade700,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -846,15 +964,25 @@ class _HistoryState extends State<HistoryPage> {
 
                     const SizedBox(height: 12),
                     Divider(color: Colors.grey.shade300),
-                    _historyItem(
-                      title: 'Washing machine',
-                      days: 'Monday, Tuesday, Wednesday',
-                      start: '09:00',
-                      end: '13:00',
-                      watt: '11 watt',
-                      price: 'Rp120.000',
-                      wattColor: Colors.red,
-                    ),
+                    isLoading
+                    ? const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                      : itemList.isEmpty
+                        ? const Padding(
+                            padding: EdgeInsets.all(16),
+                            child: Text("There isn't any item!"),
+                          )
+                          : _historyItem(
+                            title: itemList.first.name,
+                            days: itemList.first.usageDays.map((d) => capitalize(d)).join(', '),
+                            start: itemList.first.startTime,
+                            end: itemList.first.endTime,
+                            watt: '${itemList.first.usageWatt} Watt',
+                            price: '${currencyFormatter.format(itemList.first.totalCost)}',
+                            wattColor: Colors.red,
+                          ),
                   ],
                 ),
               ),

@@ -1,29 +1,127 @@
 import 'dart:io';
-import 'package:flutter/cupertino.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:zapp/features/detail/apiclient.dart';
+import 'package:zapp/features/models/usage_item.dart';
+import 'package:zapp/features/models/room.dart';
 enum DateMode { day, month, year }
 
-class CalculatePage extends StatefulWidget {
-  const CalculatePage({super.key});
+class SimulationPage extends StatefulWidget {
+  const SimulationPage({super.key});
 
   @override
-  State<CalculatePage> createState() => _CalculatePage();
+  State<SimulationPage> createState() => _SimulationState();
 }
 
-class _CalculatePage extends State<CalculatePage> {
+class _SimulationState extends State<SimulationPage> {
   final TextEditingController _roomNameController = TextEditingController();
-  File? _imageFile;
   DateMode _mode = DateMode.day;
   late DateTime _selectedDate;
   late int _selectedMonth;
   late int _selectedYear;
   final now = DateTime.now();
+
   int get _currentYear => DateTime.now().year;
   late int _yearPageStart;
   static const int _yearPageSize = 12;
 
-  String selectedRoom = 'All';
+  double totalWatt = 0;
+  double totalCost = 0;
+
+  final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp');
+  final numberFormatter = NumberFormat('#,###', 'id_ID');
+
+  String capitalize(String text) {
+  if (text.isEmpty) return text;
+  return text[0].toUpperCase() + text.substring(1);
+}
+
+  List<UsageItem> itemList = [];
+  bool isLoading = false;
+  Future<void> fetchUsage() async {
+    try {
+      setState(() {
+        isLoading = true;
+        itemList = [];
+        totalCost = 0;
+        totalWatt = 0;
+      });
+
+      final Map<String, dynamic> query = {
+        "mode": "simulation",
+        "range": _mode.name,
+        "date": _selectedDate.toIso8601String().split('T').first,
+      };
+
+      if (selectedRoom != null) {
+        query["roomId"] = selectedRoom;
+      }
+
+      final response = await ApiClient.dio.get(
+        '/usage',
+        queryParameters: query,
+      );
+
+      final Map<String, dynamic> json = response.data;
+
+      final List rooms = json["rooms"] ?? [];
+
+      final double fetchedTotalWatt = (json["totalWatt"] ?? 0).toDouble();
+      final double fetchedTotalCost = (json["totalCost"] ?? 0).toDouble();
+
+      List<UsageItem> allItems = [];
+
+      for (var room in rooms) {
+        final List items = room["items"] ?? [];
+        allItems.addAll(
+          items.map((e) => UsageItem.fromJson(e)).toList(),
+        );
+      }
+
+      setState(() {
+        itemList = allItems;
+        totalWatt = fetchedTotalWatt;
+        totalCost = fetchedTotalCost;
+      });
+    } catch (e) {
+      print(e);
+
+      setState(() {
+        itemList = [];
+        totalCost = 0;
+        totalWatt = 0;
+      });
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  List<Room> roomList = [];
+  String? selectedRoom;
+  bool isRoomLoading = false;
+  Future<void> fetchRooms() async {
+  try {
+    setState(() => isRoomLoading = true);
+
+    final response = await ApiClient.dio.get('/rooms');
+
+    final data = response.data as List;
+
+    setState(() {
+      roomList = data.map((e) => Room.fromJson(e)).toList();
+    });
+  } catch (e) {
+      print(e);
+  } finally {
+    setState(() => isRoomLoading = false);
+  }
+}
+
   @override
   void dispose() {
     _roomNameController.dispose();
@@ -39,8 +137,10 @@ class _CalculatePage extends State<CalculatePage> {
     _selectedMonth = now.month;
     _selectedYear = now.year;
     _yearPageStart = now.year - (_yearPageSize ~/ 2);
-  }
 
+    fetchRooms();
+    fetchUsage();
+  }
 
   Widget _segmentedButton() {
     return Container(
@@ -60,6 +160,7 @@ class _CalculatePage extends State<CalculatePage> {
                 setState(() {
                   _mode = mode;
                 });
+                fetchUsage();
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
@@ -96,11 +197,10 @@ class _CalculatePage extends State<CalculatePage> {
     }
   }
 
-  Widget _buildPicker({Key? key}) {
+  Widget _buildPicker() {
     switch (_mode) {
       case DateMode.day:
         return Column(
-          key: key,
           children: [
             _dayPicker(),
             const SizedBox(height: 25),
@@ -108,7 +208,6 @@ class _CalculatePage extends State<CalculatePage> {
         );
       case DateMode.month:
         return Column(
-          key: key,
           children: [
             _monthPicker(),
             const SizedBox(height: 25),
@@ -116,7 +215,6 @@ class _CalculatePage extends State<CalculatePage> {
         );
       case DateMode.year:
         return Column(
-          key: key,
           children: [
             _yearPicker(),
             const SizedBox(height: 25),
@@ -145,7 +243,11 @@ class _CalculatePage extends State<CalculatePage> {
               } else {
                 _selectedMonth--;
               }
+
+              _selectedDate = DateTime(_selectedYear, _selectedMonth, 1);
             });
+
+            fetchUsage();
           },
           onNext: () {
             setState(() {
@@ -155,7 +257,11 @@ class _CalculatePage extends State<CalculatePage> {
               } else {
                 _selectedMonth++;
               }
+
+              _selectedDate = DateTime(_selectedYear, _selectedMonth, 1);
             });
+
+            fetchUsage();
           },
         ),
         const SizedBox(height: 8),
@@ -194,6 +300,7 @@ class _CalculatePage extends State<CalculatePage> {
                     day,
                   );
                 });
+                fetchUsage();
               },
               child: Container(
                 alignment: Alignment.center,
@@ -206,7 +313,7 @@ class _CalculatePage extends State<CalculatePage> {
                 child: Text(
                   '$day',
                   style: TextStyle(
-                    color: isSelected ? Colors.white : Colors.black,
+                    color: isSelected ? Colors.white :Colors.black,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -247,25 +354,21 @@ class _CalculatePage extends State<CalculatePage> {
             childAspectRatio: 1.5,
           ),
           itemBuilder: (_, i) {
-            final now = DateTime.now();
 
             final month = i + 1;
             final isSelected = month == _selectedMonth;
 
-            final isDisabled =
-                _selectedYear > now.year ||
-                    (_selectedYear == now.year && month > now.month);
-
             return _pickerItem(
               label: _monthNames[i],
               isSelected: isSelected,
-              isDisabled: isDisabled,
+              isDisabled: false,
               onTap: () {
-                if (isDisabled) return;
-
                 setState(() {
                   _selectedMonth = month;
+                  _selectedDate = DateTime(_selectedYear, month, 1);
                 });
+
+                fetchUsage();
               },
             );
           },
@@ -277,8 +380,6 @@ class _CalculatePage extends State<CalculatePage> {
   }
 
   Widget _yearPicker() {
-    final currentYear = _currentYear;
-
     final years = List.generate(
       _yearPageSize,
           (i) => _yearPageStart + i,
@@ -315,18 +416,20 @@ class _CalculatePage extends State<CalculatePage> {
           itemBuilder: (_, i) {
             final year = years[i];
             final isSelected = year == _selectedYear;
-            final isDisabled = year > _currentYear;
 
             return _pickerItem(
               label: year.toString(),
               isSelected: isSelected,
-              isDisabled: isDisabled,
+              isDisabled: false,
               onTap: () {
-                if (isDisabled) return;
 
                 setState(() {
                   _selectedYear = year;
+
+                  _selectedDate = DateTime(year, 1, 1);
                 });
+
+                fetchUsage();
               },
             );
           },
@@ -431,7 +534,7 @@ class _CalculatePage extends State<CalculatePage> {
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
   ];
 
-  Widget _historyItem({
+  Widget _simulationItem({
     required String title,
     required String days,
     required String start,
@@ -492,10 +595,10 @@ class _CalculatePage extends State<CalculatePage> {
                   ),
                 ),
                 Text(
-                  'Simulation Price   : $price',
+                  'Price   : $price',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.grey.shade700,
+                    color: Colors.grey.shade600,
                   ),
                 ),
               ],
@@ -514,81 +617,79 @@ class _CalculatePage extends State<CalculatePage> {
     );
   }
 
-  void _printreport() {
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (context) {
-        return Dialog(
-          insetPadding: const EdgeInsets.symmetric(horizontal: 20),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Print Report',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    InkWell(
-                      onTap: () => Navigator.pop(context),
-                      child: Icon(
-                        Icons.close,
-                        size: 20,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
-                ),
+  Future<void> _printreport() async {
+    try {
+      setState(() {
+        isLoading = true;
+      });
 
-                Divider(color: Colors.grey.shade300),
-                _historyItem(
-                  title: 'Print Report',
-                  days: 'Print Report',
-                  start: 'Print Report',
-                  end: 'Print Report',
-                  watt: 'Print Report',
-                  price: 'Print Report',
-                  wattColor: Colors.red,
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+      final Map<String, dynamic> query = {
+        "mode": "simulation",
+        "range": _mode.name,
+        "date": _selectedDate.toIso8601String().split('T').first,
+      };
+
+      if (selectedRoom != null) {
+        query["roomId"] = selectedRoom;
+      }
+
+      final response = await ApiClient.dio.get(
+        '/usage/pdf',
+        queryParameters: query,
+        options: Options(responseType: ResponseType.bytes),
+      );
+
+      String filename = "report.pdf";
+
+      final contentDisposition = 
+        response.headers.value("content-disposition");
+
+      if (contentDisposition != null) {
+        final regex = RegExp(r'filename="?([^\";]+)"?');
+        final match = regex.firstMatch(contentDisposition);
+        if (match != null) {
+          filename = match.group(1)!;
+        }
+      }
+      filename = filename.replaceAll('"', '');
+      if (!filename.toLowerCase().endsWith(".pdf")) {
+        filename = "$filename.pdf";
+      }
+
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File("${dir.path}/$filename");
+      await file.writeAsBytes(response.data);
+
+      await OpenFilex.open(file.path);
+
+      // await OpenFilex.open(file.path);
+    } catch (e) {
+      print(e);
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
-  void _showHistoryPopup() {
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (context) {
-        return Dialog(
-          insetPadding: const EdgeInsets.symmetric(horizontal: 20),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+  void _showSimulationPopup() {
+  showDialog(
+    context: context,
+    barrierDismissible: true,
+    builder: (context) {
+      return Dialog(
+        backgroundColor: Colors.white,
+        insetPadding:
+            const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.7,
           ),
-          child: Container(
+          child: Padding(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -605,66 +706,54 @@ class _CalculatePage extends State<CalculatePage> {
                     ),
                     InkWell(
                       onTap: () => Navigator.pop(context),
-                      child: Icon(
-                        Icons.close,
-                        size: 20,
-                        color: Colors.grey.shade600,
-                      ),
+                      child: const Icon(Icons.close, size: 20),
                     ),
                   ],
                 ),
 
                 const SizedBox(height: 12),
                 Divider(color: Colors.grey.shade300),
-                _historyItem(
-                  title: 'Washing machine',
-                  days: 'Monday, Tuesday, Wednesday',
-                  start: '09:00',
-                  end: '13:00',
-                  watt: '11 watt',
-                  price: 'Rp120.000',
-                  wattColor: Colors.red,
-                ),
 
-                Divider(color: Colors.grey.shade300),
-                _historyItem(
-                  title: 'Refrigerator',
-                  days: 'Every days',
-                  start: '09:00',
-                  end: '13:00',
-                  watt: '13 watt',
-                  price: 'Rp120.000',
-                  wattColor: Colors.red,
-                ),
-
-                Divider(color: Colors.grey.shade300),
-                _historyItem(
-                  title: 'Air Conditioner',
-                  days: 'Every days',
-                  start: '09:00',
-                  end: '13:00',
-                  watt: '40 watt',
-                  price: 'Rp120.000',
-                  wattColor: Colors.red,
-                ),
-
-                Divider(color: Colors.grey.shade300),
-                _historyItem(
-                  title: 'Lamp',
-                  days: 'Every days',
-                  start: '09:00',
-                  end: '13:00',
-                  watt: '50 watt',
-                  price: 'Rp120.000',
-                  wattColor: Colors.red,
+                /// CONTENT
+                Flexible(
+                  child: isLoading
+                      ? const Padding(
+                          padding: EdgeInsets.all(20),
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      : itemList.isEmpty
+                          ? const Padding(
+                              padding: EdgeInsets.all(20),
+                              child:
+                                  Center(child: Text("There isn't any item!")),
+                            )
+                          : ListView.separated(
+                              shrinkWrap: true,
+                              itemCount: itemList.length,
+                              separatorBuilder: (_, __) =>
+                                  Divider(color: Colors.grey.shade300),
+                              itemBuilder: (_, index) {
+                                final item = itemList[index];
+                                return _simulationItem(
+                                  title: item.name,
+                                  days: item.usageDays.map((d) => capitalize(d)).join(', '),
+                                  start: item.startTime,
+                                  end: item.endTime,
+                                  watt: '${item.usageWatt} watt',
+                                  price: '${currencyFormatter.format(item.totalCost)}',
+                                  wattColor: Colors.red,
+                                );
+                              },
+                            ),
                 ),
               ],
             ),
           ),
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -682,7 +771,7 @@ class _CalculatePage extends State<CalculatePage> {
               ),
               const SizedBox(height: 8),
 
-              DropdownButtonFormField<String>(
+              DropdownButtonFormField<String?>(
                 dropdownColor: Colors.white,
                 value: selectedRoom,
                 isExpanded: true,
@@ -694,16 +783,18 @@ class _CalculatePage extends State<CalculatePage> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                items: const [
-                  DropdownMenuItem(value: 'All', child: Text('All')),
-                  DropdownMenuItem(value: 'Kitchen', child: Text('Kitchen')),
-                  DropdownMenuItem(value: 'Bedroom', child: Text('Bedroom')),
-                  DropdownMenuItem(value: 'Living Room', child: Text('Living Room')),
+                items: [
+                  const DropdownMenuItem<String?>(value: null, child: Text('All')),
+                  ...roomList.map((room) {
+                    return DropdownMenuItem<String?>(value: room.roomId, child: Text(room.name));
+                  }).toList(),
                 ],
                 onChanged: (value) {
                   setState(() {
-                    selectedRoom = value!;
+                    selectedRoom = value;
                   });
+
+                  fetchUsage();
                 },
               ),
 
@@ -715,12 +806,8 @@ class _CalculatePage extends State<CalculatePage> {
               const SizedBox(height: 8),
               _segmentedButton(),
               const SizedBox(height: 8),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 250),
-                child: _buildPicker(
-                  key: ValueKey(_mode),
-                ),
-              ),
+              AnimatedSwitcher(duration: const Duration(milliseconds: 250), child: _buildPicker()),
+
               Row(
                 children: [
                   Expanded(
@@ -736,7 +823,7 @@ class _CalculatePage extends State<CalculatePage> {
                           const SizedBox(width: 10),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: const [
+                            children: [
                               Text(
                                 'Total Watt',
                                 style: TextStyle(
@@ -746,7 +833,7 @@ class _CalculatePage extends State<CalculatePage> {
                               ),
                               SizedBox(height: 4),
                               Text(
-                                '70 watt',
+                                '${numberFormatter.format(totalWatt)} Watt',
                                 style: TextStyle(
                                   color: Colors.white70,
                                   fontSize: 12,
@@ -774,7 +861,7 @@ class _CalculatePage extends State<CalculatePage> {
                           const SizedBox(width: 10),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: const [
+                            children: [
                               Text(
                                 'Total Cost',
                                 style: TextStyle(
@@ -784,7 +871,7 @@ class _CalculatePage extends State<CalculatePage> {
                               ),
                               SizedBox(height: 4),
                               Text(
-                                'Rp107.000,00',
+                                currencyFormatter.format(totalCost),
                                 style: TextStyle(
                                   color: Colors.white70,
                                   fontSize: 12,
@@ -821,20 +908,20 @@ class _CalculatePage extends State<CalculatePage> {
                         ),
                         InkWell(
                           onTap: () {
-                            _printreport();
+                            isLoading ? null : _printreport();
                           },
                           child: Text(
                             'Print Report',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.blue.shade700,
+                              color: isLoading ? Colors.grey : Colors.blue.shade700,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
                         ),
                         InkWell(
                           onTap: () {
-                            _showHistoryPopup();
+                            _showSimulationPopup();
                           },
                           child: Text(
                             'View All',
@@ -852,15 +939,25 @@ class _CalculatePage extends State<CalculatePage> {
 
                     const SizedBox(height: 12),
                     Divider(color: Colors.grey.shade300),
-                    _historyItem(
-                      title: 'Washing machine',
-                      days: 'Monday, Tuesday, Wednesday',
-                      start: '09:00',
-                      end: '13:00',
-                      watt: '11 watt',
-                      price: 'Rp120.000',
-                      wattColor: Colors.red,
-                    ),
+                    isLoading
+                    ? const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                      : itemList.isEmpty
+                        ? const Padding(
+                            padding: EdgeInsets.all(16),
+                            child: Text("There isn't any item!"),
+                          )
+                          : _simulationItem(
+                            title: itemList.first.name,
+                            days: itemList.first.usageDays.map((d) => capitalize(d)).join(', '),
+                            start: itemList.first.startTime,
+                            end: itemList.first.endTime,
+                            watt: '${itemList.first.usageWatt} Watt',
+                            price: '${currencyFormatter.format(itemList.first.totalCost)}',
+                            wattColor: Colors.red,
+                          ),
                   ],
                 ),
               ),

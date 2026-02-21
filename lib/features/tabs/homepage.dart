@@ -10,7 +10,7 @@ import 'package:zapp/routes/route_observer.dart';
 import 'package:zapp/core/components/carousel.dart';
 import 'package:zapp/core/components/room_cart.dart';
 
-import 'calculate.dart';
+import 'simulation.dart';
 import 'history.dart';
 import 'news.dart';
 
@@ -79,7 +79,7 @@ class _HomePageState extends State<HomePage> {
         index: _currentIndex,
         children: const [
           HomeContent(),
-          CalculatePage(),
+          SimulationPage(),
           HistoryPage(),
           NewsPage(),
         ],
