@@ -256,80 +256,71 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
 
     // For simplicity: delete one-by-one via DeleteRoomPage flow OR direct DELETE calls.
     // Here: if 1 selected -> open DeleteRoomPage; if many -> delete sequentially via API.
-    if (selectedRooms.length == 1) {
+    if (selectedRooms.length > 0) {
       final room = selectedRooms.first;
       final roomId = (room['id'] ?? room['room_id'] ?? '').toString();
       final roomName = (room['name'] ?? '-').toString();
-
       if (roomId.isEmpty) return;
 
-      final result = await Navigator.push<bool>(
-        context,
-        MaterialPageRoute(
-          builder: (_) => DeleteRoomPage(
-            roomId: roomId,
-            roomName: roomName,
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
+          title: const Text(
+            "Delete room?",
+            style: TextStyle(
+              color: Colors.black,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Text(
+            "You are about to delete ${selectedRooms.length} rooms. This action cannot be undone.",
+            style: const TextStyle(color: Color(0xFF838383)),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text(
+                "Cancel",
+                style: TextStyle(color: Color(0xFF838383)),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text(
+                "Delete",
+                style: TextStyle(color: Color(0xFF092C4C)),
+              ),
+            ),
+          ],
         ),
       );
 
-      if (result == true) _refreshRooms();
-      return;
-    }
+      if (confirmed != true) return;
 
-    // Multi delete confirm
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          "Delete rooms?",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: Text(
-          "You are about to delete ${selectedRooms.length} rooms. This action cannot be undone.",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text("Delete", style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    // Delete sequentially
-    try {
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (_) => const Center(child: CircularProgressIndicator()),
+        builder: (_) => const Center(
+          child: CircularProgressIndicator(),
+        ),
       );
 
-      for (final room in selectedRooms) {
-        final roomId = (room['id'] ?? room['room_id'] ?? '').toString();
-        if (roomId.isEmpty) continue;
+      if (selectedRooms.length == 1) {
         await ApiClient.dio.delete('/rooms/$roomId');
+      } else {
+        for (final room in selectedRooms) {
+          final id = (room['id'] ?? room['room_id'] ?? '').toString();
+          if (id.isEmpty) continue;
+          await ApiClient.dio.delete('/rooms/$id');
+        }
       }
 
-      if (!mounted) return;
-      Navigator.pop(context); // close loading
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Rooms deleted successfully")),
-      );
-      _refreshRooms();
-    } catch (e) {
       if (mounted) Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to delete rooms: $e")),
-      );
+      _refreshRooms();
     }
   }
 
@@ -518,7 +509,7 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
     );
   }
 
-  Widget _roomGrid() {
+  Widget  _roomGrid() {
     return FutureBuilder<List<dynamic>>(
       future: _futureRooms,
       builder: (context, snapshot) {
