@@ -20,9 +20,6 @@ class _HistoryState extends State<HistoryPage> {
   final TextEditingController _roomNameController = TextEditingController();
   DateMode _mode = DateMode.day;
   late DateTime _selectedDate;
-  late int _selectedMonth;
-  late int _selectedYear;
-  final now = DateTime.now();
 
   int get _currentYear => DateTime.now().year;
   late int _yearPageStart;
@@ -134,8 +131,6 @@ class _HistoryState extends State<HistoryPage> {
 
     final now = DateTime.now();
     _selectedDate = now;
-    _selectedMonth = now.month;
-    _selectedYear = now.year;
     _yearPageStart = now.year - (_yearPageSize ~/ 2);
 
     fetchRooms();
@@ -223,44 +218,82 @@ class _HistoryState extends State<HistoryPage> {
     }
   }
 
+  DateTime _adjustDate(int year, int month, int currentDay) {
+    final daysInMonth = DateUtils.getDaysInMonth(year, month);
+
+    final safeDay = currentDay > daysInMonth
+        ? daysInMonth
+        : currentDay;
+
+    return DateTime(year, month, safeDay);
+}
+
+  void _syncYearPage() {
+    final selectedYear = _selectedDate.year;
+
+    if (selectedYear < _yearPageStart ||
+        selectedYear >= _yearPageStart + _yearPageSize) {
+      _yearPageStart =
+          selectedYear - (selectedYear % _yearPageSize);
+    }
+  }
+
   Widget _dayPicker() {
-    final firstDayOfMonth = DateTime(_selectedYear, _selectedMonth, 1);
+    final now = DateTime.now();
+    final year = _selectedDate.year;
+    final month = _selectedDate.month;
+    final firstDayOfMonth = DateTime(year, month, 1);
     final daysInMonth =
-    DateUtils.getDaysInMonth(_selectedYear, _selectedMonth);
+    DateUtils.getDaysInMonth(year, month);
     final startOffset = firstDayOfMonth.weekday % 7;
     final totalItems = startOffset + daysInMonth;
+    final firstDayThisMonth = DateTime(now.year, now.month, 1);
+    final currentMonth = DateTime(year, month, 1);
 
+    final isNextDisabled = currentMonth.isAtSameMomentAs(firstDayThisMonth);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _header(
-          title: '${_monthNames[_selectedMonth - 1]} $_selectedYear',
+          title: '${_monthNames[month - 1]} $year',
           onPrev: () {
-            setState(() {
-              if (_selectedMonth == 1) {
-                _selectedMonth = 12;
-                _selectedYear--;
-              } else {
-                _selectedMonth--;
-              }
+            final newMonth = _selectedDate.month - 1;
+            final newYear = _selectedDate.year;
 
-              _selectedDate = DateTime(_selectedYear, _selectedMonth, 1);
+            setState(() {
+              _selectedDate = _adjustDate(
+                newYear,
+                newMonth,
+                _selectedDate.day,
+              );
             });
 
+            _syncYearPage();
             fetchUsage();
           },
-          onNext: () {
-            setState(() {
-              if (_selectedMonth == 12) {
-                _selectedMonth = 1;
-                _selectedYear++;
-              } else {
-                _selectedMonth++;
+          onNext: isNextDisabled
+          ? () {}
+          : () {
+            final now = DateTime.now();
+
+              final newMonth = _selectedDate.month + 1;
+              final newYear = _selectedDate.year;
+
+              DateTime newDate = _adjustDate(
+                newYear,
+                newMonth,
+                _selectedDate.day,
+              );
+
+              if (newDate.isAfter(DateTime(now.year, now.month, now.day))) {
+                newDate = DateTime(now.year, now.month, now.day);
               }
 
-              _selectedDate = DateTime(_selectedYear, _selectedMonth, 1);
-            });
+              setState(() {
+                _selectedDate = newDate;
+              });
 
+            _syncYearPage();
             fetchUsage();
           },
         ),
@@ -287,19 +320,15 @@ class _HistoryState extends State<HistoryPage> {
 
             final currentDate = DateTime.now();
 
-            final candidateDate = DateTime(
-              _selectedYear,
-              _selectedMonth,
-              day,
-            );
+            final candidateDate = DateTime(year, month, day);
 
             final isDisabled = candidateDate.isAfter(
               DateTime(currentDate.year, currentDate.month, currentDate.day),
             );
 
             final isSelected =
-                _selectedDate.year == _selectedYear &&
-                    _selectedDate.month == _selectedMonth &&
+                _selectedDate.year == year &&
+                    _selectedDate.month == month &&
                     _selectedDate.day == day;
 
             return InkWell(
@@ -308,12 +337,13 @@ class _HistoryState extends State<HistoryPage> {
                 ? null
                 : () {
                   setState(() {
-                    _selectedDate = DateTime(
-                      _selectedYear,
-                      _selectedMonth,
+                    _selectedDate = _adjustDate(
+                      year,
+                      month,
                       day,
                     );
                   });
+                  _syncYearPage();
                   fetchUsage();
               },
               child: Container(
@@ -340,19 +370,38 @@ class _HistoryState extends State<HistoryPage> {
   }
 
   Widget _monthPicker() {
+    final year = _selectedDate.year;
+    final month = _selectedDate.month;
+
     return Column(
       children: [
         _header(
-          title: '$_selectedYear',
+          title: '$year',
           onPrev: () {
             setState(() {
-              _selectedYear--;
+              _selectedDate = _adjustDate(year - 1, month, _selectedDate.day,);
             });
+            _syncYearPage();
+            fetchUsage();
           },
           onNext: () {
+            final now = DateTime.now();
+            final today = DateTime(now.year, now.month, now.day);
+            final newYear = year + 1;
+
+            if (newYear > now.year) return;
+
+            DateTime newDate = _adjustDate(newYear, month, _selectedDate.day,);
+
+            if (newDate.isAfter(today)) {
+              newDate = today;
+            }
+
             setState(() {
-              _selectedYear++;
+              _selectedDate = newDate;
             });
+            _syncYearPage();
+            fetchUsage();
           },
         ),
         const SizedBox(height: 12),
@@ -371,11 +420,9 @@ class _HistoryState extends State<HistoryPage> {
             final now = DateTime.now();
 
             final month = i + 1;
-            final isSelected = month == _selectedMonth;
+            final isSelected = month == _selectedDate.month;
 
-            final isDisabled =
-                _selectedYear > now.year ||
-                    (_selectedYear == now.year && month > now.month);
+            final isDisabled = year > now.year || (year == now.year && month > now.month);
 
             return _pickerItem(
               label: _monthNames[i],
@@ -384,18 +431,23 @@ class _HistoryState extends State<HistoryPage> {
               onTap: () {
                 if (isDisabled) return;
 
+                final now = DateTime.now();
+                final today = DateTime(now.year, now.month, now.day);
+
+                DateTime newDate = _adjustDate(year, month, _selectedDate.day);
+
+                if (newDate.isAfter(today)) {
+                  newDate = today;
+                }
+
                 setState(() {
-                  _selectedMonth = month;
-
-                  _selectedDate = DateTime(_selectedYear, month, 1);
+                  _selectedDate = newDate;
                 });
-
+                _syncYearPage();
                 fetchUsage();
               },
             );
           },
-
-
         ),
       ],
     );
@@ -412,14 +464,41 @@ class _HistoryState extends State<HistoryPage> {
         _header(
           title: '${years.first} - ${years.last}',
           onPrev: () {
+            final now = DateTime.now();
+
+            final today = DateTime(now.year, now.month, now.day);
+            final newYear = years.first - _yearPageSize;
+
+            DateTime newDate = _adjustDate(newYear, _selectedDate.month, _selectedDate.day,);
+
+            if (newDate.isAfter(today)) {
+              newDate = today;
+            }
+
             setState(() {
               _yearPageStart -= _yearPageSize;
+              _selectedDate = newDate;
             });
+            fetchUsage();
           },
           onNext: () {
+            final now = DateTime.now();
+
+            if (years.last >= now.year) return;
+
+            final today = DateTime(now.year, now.month, now.day);
+            final newYear = years.first + _yearPageSize;
+
+            DateTime newDate = _adjustDate(newYear, _selectedDate.month, _selectedDate.day,);
+
+            if (newDate.isAfter(today)) {
+              newDate = today;
+            }
             setState(() {
               _yearPageStart += _yearPageSize;
+              _selectedDate = newDate;
             });
+            fetchUsage();
           },
         ),
         const SizedBox(height: 12),
@@ -437,8 +516,9 @@ class _HistoryState extends State<HistoryPage> {
           ),
           itemBuilder: (_, i) {
             final year = years[i];
-            final isSelected = year == _selectedYear;
-            final isDisabled = year > _currentYear;
+            final now = DateTime.now();
+            final isSelected = year == _selectedDate.year;
+            final isDisabled = year > now.year;
 
             return _pickerItem(
               label: year.toString(),
@@ -447,17 +527,23 @@ class _HistoryState extends State<HistoryPage> {
               onTap: () {
                 if (isDisabled) return;
 
-                setState(() {
-                  _selectedYear = year;
+                final now = DateTime.now();
+                final today = DateTime(now.year, now.month, now.day);
 
-                  _selectedDate = DateTime(year, 1, 1);
+                DateTime newDate = _adjustDate(year, _selectedDate.month, _selectedDate.day);
+
+                if (newDate.isAfter(today)) {
+                  newDate = today;
+                }
+
+                setState(() {
+                  _selectedDate = newDate;
                 });
 
                 fetchUsage();
               },
             );
           },
-
         ),
       ],
     );
