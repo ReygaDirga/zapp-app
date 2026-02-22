@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'apiclient.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
 class HomeOfficePage extends StatefulWidget {
   final String roomId;
@@ -55,6 +57,8 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
   bool isSaving = false;
   bool isDeleting = false;
   bool isRenaming = false;
+  File? headerImage;
+  final ImagePicker _picker = ImagePicker();
 
   final Map<String, bool> days = {
     "Sunday": false,
@@ -93,6 +97,19 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
     roomTitle = widget.roomName;
     _titleController = TextEditingController(text: roomTitle);
     fetchItems();
+  }
+
+  Future<void> _pickHeaderImage() async {
+    final picked = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
+
+    if (picked == null) return;
+
+    setState(() {
+      headerImage = File(picked.path);
+    });
   }
 
   void _loadItemToUI(Item item) {
@@ -356,7 +373,14 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
   Widget _header() {
     return Stack(
       children: [
-        Image.asset(
+        headerImage != null
+            ? Image.file(
+          headerImage!,
+          height: 190,
+          width: double.infinity,
+          fit: BoxFit.cover,
+        )
+            : Image.asset(
           "assets/images/home_office.jpg",
           height: 190,
           width: double.infinity,
@@ -424,7 +448,7 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
               IconButton(
                 icon: const Icon(Icons.camera_alt, color: Colors.white),
                 onPressed: () {
-                  // TODO: open image picker
+                  _pickHeaderImage();
                 },
               ),
             ],
