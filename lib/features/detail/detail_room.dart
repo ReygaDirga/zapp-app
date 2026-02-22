@@ -53,6 +53,7 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
   late String roomTitle;
   String selectedDevice = "";
   bool isSaving = false;
+  bool isDeleting = false;
   final Map<String, bool> days = {
     "Sunday": false,
     "Monday": false,
@@ -285,25 +286,39 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF3F5F9),
-      body: Column(
+      body: Stack(
         children: [
-          _header(),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  _deviceTabs(),
-                  const SizedBox(height: 12),
+          Column(
+            children: [
+              _header(),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 12),
+                      _deviceTabs(),
+                      const SizedBox(height: 12),
+                      if (items.isNotEmpty && selectedDevice.isNotEmpty) ...[
+                        _mainCard(),
+                        const SizedBox(height: 16),
+                        _saveButton(),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
 
-                  if (items.isNotEmpty && selectedDevice.isNotEmpty) ...[
-                    _mainCard(),
-                    const SizedBox(height: 16),
-                    _saveButton(),
-                  ],
-                ],
+          if (isDeleting)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withOpacity(0.3),
+                child: const Center(
+                  child: CircularProgressIndicator(),
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -409,14 +424,29 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
     if (isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Wrap(
-        spacing: 8,
+      child: Row(
         children: [
           _addDeviceChip(),
-          ...items.map((item) => _chip(item)).toList(),
+
+          const SizedBox(width: 8),
+
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  ...items.map((item) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _chip(item),
+                    );
+                  }).toList(),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -426,14 +456,14 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
     final isActive = selectedDevice == item.id;
 
     return ChoiceChip(
-      label: Text(item.name),
-      selected: isActive,
-      showCheckmark: false,
-      selectedColor: Colors.blue[700],
-      backgroundColor: Colors.white,
-      labelStyle: TextStyle(
-        color: isActive ? Colors.white : Colors.black,
-      ),
+        label: Text(item.name),
+        selected: isActive,
+        showCheckmark: false,
+        selectedColor: Colors.blue[700],
+        backgroundColor: Colors.white,
+        labelStyle: TextStyle(
+          color: isActive ? Colors.white : Colors.black,
+        ),
         onSelected: (_) {
           final selectedItem =
           items.firstWhere((e) => e.id == item.id);
@@ -471,9 +501,48 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  onSelected: (value) {
-                    if (value == "rename") {}
-                    if (value == "delete") {}
+                  onSelected: (value) async {
+                    if (value == "delete") {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (context) {
+                          return AlertDialog(
+                            backgroundColor: Colors.white,
+                            title: const Text("Delete Item"),
+                            content: const Text(
+                                "Are you sure you want to delete this item?"),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: const Text("Cancel", style: TextStyle(color: Color(0xFF838383)),),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                child: const Text(
+                                  "Delete",
+                                  style: TextStyle(color: Color(0xFF092C4C)),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                      if (confirm == true) {
+                        setState(() => isDeleting = true);
+
+                        try {
+                          await ApiClient.dio.delete(
+                            '/rooms/${widget.roomId}/items/$selectedDevice',
+                          );
+                          await fetchItems();
+                        } finally {
+                          if (mounted) {
+                            setState(() => isDeleting = false);
+                          }
+                        }
+                      }
+                    }
+                    if (value == "rename") { }
                   },
                   itemBuilder: (context) => const [
                     PopupMenuItem(
