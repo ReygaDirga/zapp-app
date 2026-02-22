@@ -53,7 +53,7 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
   bool _isEditingTitle = false;
   late TextEditingController _titleController;
   late String roomTitle;
-  String selectedDevice = "";
+  Item? selectedItem;
   bool isSaving = false;
   bool isDeleting = false;
   bool isRenaming = false;
@@ -113,7 +113,7 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
   }
 
   void _loadItemToUI(Item item) {
-    selectedDevice = item.id;
+    selectedItem = item;
 
     energyUsage = item.usageWatt.toDouble();
     energyController.text = item.usageWatt.toString();
@@ -153,10 +153,6 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
     try {
       final res = await ApiClient.dio
           .get('/rooms/${widget.roomId}/items');
-
-      debugPrint("ROOM ID GET: ${widget.roomId}");
-      debugPrint("ITEM STATUS: ${res.statusCode}");
-      debugPrint("ITEM DATA: ${res.data}");
       final data = res.data as List;
 
       setState(() {
@@ -168,7 +164,6 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
       });
     } catch (e) {
       setState(() => isLoading = false);
-      debugPrint("ITEM ERROR: $e");
     }
   }
 
@@ -183,14 +178,13 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
     final newTitle = _titleController.text.trim();
     if (newTitle.isEmpty) return;
 
+    setState(() => isRenaming = true);
+
     try {
-      final res = await ApiClient.dio.patch(
+      await ApiClient.dio.patch(
         '/rooms/${widget.roomId}',
         data: {"name": newTitle},
       );
-
-      debugPrint("STATUS: ${res.statusCode}");
-      debugPrint("DATA: ${res.data}");
 
       if (!mounted) return;
 
@@ -198,9 +192,10 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
         roomTitle = newTitle;
         _isEditingTitle = false;
       });
-
-    } catch (e) {
-      debugPrint("ERROR PATCH: $e");
+    } finally {
+      if (mounted) {
+        setState(() => isRenaming = false);
+      }
     }
   }
 
@@ -211,52 +206,87 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text("Add Device"),
-          content: TextField(
-            controller: deviceController,
-            decoration:
-            const InputDecoration(labelText: "Device name"),
+        return Dialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel"),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Add New Device",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.black26),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: TextField(
+                    controller: deviceController,
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text(
+                        "Cancel",
+                        style: TextStyle(color: Color(0xFF838383)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    TextButton(
+                      onPressed: () {
+                        final newDevice = deviceController.text.trim();
+                        if (newDevice.isEmpty) return;
+
+                        final tempItem = Item(
+                          id: DateTime.now().millisecondsSinceEpoch.toString(),
+                          name: newDevice,
+                          usageDays: [],
+                          startTime: "${startTime.hour.toString().padLeft(2,'0')}:${startTime.minute.toString().padLeft(2,'0')}:00",
+                          endTime: "${endTime.hour.toString().padLeft(2,'0')}:${endTime.minute.toString().padLeft(2,'0')}:00",
+                          usageWatt: 0,
+                          isLocal: true,
+                        );
+
+                        setState(() {
+                          items.add(tempItem);
+                          selectedItem = tempItem;
+                          _loadItemToUI(tempItem);
+                        });
+
+                        Navigator.pop(context);
+                      },
+                      child: const Text(
+                        "Add",
+                        style: TextStyle(color: Color(0xFF2B599C)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            TextButton(
-              onPressed: () {
-                final newDevice = deviceController.text.trim();
-                if (newDevice.isEmpty) return;
-
-                final tempItem = Item(
-                  id: DateTime.now().millisecondsSinceEpoch.toString(),
-                  name: newDevice,
-                  usageDays: [],
-                  startTime: "${startTime.hour.toString().padLeft(2,'0')}:${startTime.minute.toString().padLeft(2,'0')}:00",
-                  endTime: "${endTime.hour.toString().padLeft(2,'0')}:${endTime.minute.toString().padLeft(2,'0')}:00",
-                  usageWatt: 0,
-                  isLocal: true,
-                );
-
-                setState(() {
-                  items.add(tempItem);
-                  selectedDevice = tempItem.id;
-
-                  startTime = const TimeOfDay(hour: 0, minute: 0);
-                  endTime = const TimeOfDay(hour: 0, minute: 0);
-                  energyUsage = 0;
-                  energyController.text = "0";
-
-                  for (var key in days.keys) {
-                    days[key] = false;
-                  }
-                });
-
-                Navigator.pop(context);
-              },
-              child: const Text("Add"),
-            ),
-          ],
+          ),
         );
       },
     );
@@ -267,13 +297,27 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
 
     try {
       await ApiClient.dio.patch(
-        '/rooms/${widget.roomId}/items/$selectedDevice',
-        data: {
-          "name": newName,
-        },
+        '/rooms/${widget.roomId}/items/${selectedItem!.id}',
+        data: {"name": newName},
       );
 
-      await fetchItems();
+      setState(() {
+        selectedItem = Item(
+          id: selectedItem!.id,
+          name: newName,
+          usageDays: selectedItem!.usageDays,
+          startTime: selectedItem!.startTime,
+          endTime: selectedItem!.endTime,
+          usageWatt: selectedItem!.usageWatt,
+        );
+
+        final index =
+        items.indexWhere((e) => e.id == selectedItem!.id);
+
+        if (index != -1) {
+          items[index] = selectedItem!;
+        }
+      });
     } finally {
       if (mounted) {
         setState(() => isRenaming = false);
@@ -335,7 +379,7 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
                       const SizedBox(height: 12),
                       _deviceTabs(),
                       const SizedBox(height: 12),
-                      if (items.isNotEmpty && selectedDevice.isNotEmpty) ...[
+                      if (selectedItem != null) ...[
                         _mainCard(),
                         const SizedBox(height: 16),
                         _saveButton(),
@@ -347,16 +391,7 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
             ],
           ),
 
-          if (isDeleting)
-            Positioned.fill(
-              child: Container(
-                color: Colors.black.withOpacity(0.3),
-                child: const Center(
-                  child: CircularProgressIndicator(),
-                ),
-              ),
-            ),
-          if (isRenaming)
+          if (isDeleting || isRenaming)
             Positioned.fill(
               child: Container(
                 color: Colors.black.withOpacity(0.3),
@@ -511,7 +546,7 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
   }
 
   Widget _chip(Item item) {
-    final isActive = selectedDevice == item.id;
+    final isActive = selectedItem?.id == item.id;
 
     return ChoiceChip(
         label: Text(item.name),
@@ -554,8 +589,8 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
                 ),
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert, size: 20),
-                  color: Colors.white, // ini bikin bg putih
-                  surfaceTintColor: Colors.white, // penting buat Material 3
+                  color: Colors.white,
+                  surfaceTintColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -590,9 +625,18 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
 
                         try {
                           await ApiClient.dio.delete(
-                            '/rooms/${widget.roomId}/items/$selectedDevice',
+                            '/rooms/${widget.roomId}/items/${selectedItem!.id}',
                           );
-                          await fetchItems();
+
+                          setState(() {
+                            items.removeWhere((e) => e.id == selectedItem!.id);
+
+                            if (items.isNotEmpty) {
+                              _loadItemToUI(items.first);
+                            } else {
+                              selectedItem = null;
+                            }
+                          });
                         } finally {
                           if (mounted) {
                             setState(() => isDeleting = false);
@@ -601,7 +645,7 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
                       }
                     }
                     if (value == "rename") {
-                      final item = items.firstWhere((e) => e.id == selectedDevice);
+                      final item = selectedItem!;
                       final controller = TextEditingController(text: item.name);
 
                       final confirm = await showDialog<bool>(
@@ -831,7 +875,7 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
   }
 
   Widget _saveButton() {
-    final item = items.firstWhere((e) => e.id == selectedDevice);
+    final item = selectedItem!;
 
     final isUpdate = !item.isLocal;
 
