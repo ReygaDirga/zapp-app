@@ -54,6 +54,8 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
   String selectedDevice = "";
   bool isSaving = false;
   bool isDeleting = false;
+  bool isRenaming = false;
+
   final Map<String, bool> days = {
     "Sunday": false,
     "Monday": false,
@@ -243,6 +245,24 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
     );
   }
 
+  Future<void> _renameItem(String newName) async {
+    setState(() => isRenaming = true);
+
+    try {
+      await ApiClient.dio.patch(
+        '/rooms/${widget.roomId}/items/$selectedDevice',
+        data: {
+          "name": newName,
+        },
+      );
+
+      await fetchItems();
+    } finally {
+      if (mounted) {
+        setState(() => isRenaming = false);
+      }
+    }
+  }
 
   Future<void> pickTime(bool isStart) async {
     final picked = await showTimePicker(
@@ -311,6 +331,15 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
           ),
 
           if (isDeleting)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withOpacity(0.3),
+                child: const Center(
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+            ),
+          if (isRenaming)
             Positioned.fill(
               child: Container(
                 color: Colors.black.withOpacity(0.3),
@@ -542,7 +571,41 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
                         }
                       }
                     }
-                    if (value == "rename") { }
+                    if (value == "rename") {
+                      final item = items.firstWhere((e) => e.id == selectedDevice);
+                      final controller = TextEditingController(text: item.name);
+
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (context) {
+                          return AlertDialog(
+                            backgroundColor: Colors.white,
+                            title: const Text("Rename Item"),
+                            content: TextField(
+                              controller: controller,
+                              autofocus: true,
+                              decoration: const InputDecoration(
+                                labelText: "Item name",
+                              ),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: const Text("Cancel", style: TextStyle(color: Color(0xFF838383)),),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                child: const Text("Save", style: TextStyle(color: Color(0xFF092C4C)),),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+
+                      if (confirm == true && controller.text.trim().isNotEmpty) {
+                        await _renameItem(controller.text.trim());
+                      }
+                    }
                   },
                   itemBuilder: (context) => const [
                     PopupMenuItem(
