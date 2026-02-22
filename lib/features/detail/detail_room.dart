@@ -288,12 +288,10 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
       body: Column(
         children: [
           _header(),
-
           Expanded(
             child: SingleChildScrollView(
               child: Column(
                 children: [
-                  const SizedBox(height: 12),
                   _deviceTabs(),
                   const SizedBox(height: 12),
 
@@ -316,7 +314,7 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
       children: [
         Image.asset(
           "assets/images/home_office.jpg",
-          height: 230,
+          height: 190,
           width: double.infinity,
           fit: BoxFit.cover,
         ),
@@ -368,15 +366,22 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
                   _isEditingTitle ? Icons.check : Icons.edit,
                   color: Colors.white,
                 ),
-                  onPressed: () async {
-                    if (_isEditingTitle) {
-                      await _saveTitle();
-                    } else {
-                      setState(() {
-                        _isEditingTitle = true;
-                      });
-                    }
+                onPressed: () async {
+                  if (_isEditingTitle) {
+                    await _saveTitle();
+                  } else {
+                    setState(() {
+                      _isEditingTitle = true;
+                    });
                   }
+                },
+              ),
+
+              IconButton(
+                icon: const Icon(Icons.camera_alt, color: Colors.white),
+                onPressed: () {
+                  // TODO: open image picker
+                },
               ),
             ],
           ),
@@ -444,20 +449,46 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         decoration: _outerCardDecoration(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              "Schedule",
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  "Schedule",
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert, size: 20),
+                  color: Colors.white, // ini bikin bg putih
+                  surfaceTintColor: Colors.white, // penting buat Material 3
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  onSelected: (value) {
+                    if (value == "rename") {}
+                    if (value == "delete") {}
+                  },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(
+                      value: "rename",
+                      child: Text("Rename Items"),
+                    ),
+                    PopupMenuItem(
+                      value: "delete",
+                      child: Text("Delete Items"),
+                    ),
+                  ],
+                ),
+              ],
             ),
             const SizedBox(height: 16),
-
             Row(
               children: [
                 _timeBox(
