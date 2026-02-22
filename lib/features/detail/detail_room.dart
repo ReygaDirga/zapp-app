@@ -46,8 +46,8 @@ class Item {
 }
 
 class _HomeOfficePageState extends State<HomeOfficePage> {
-  TimeOfDay startTime = const TimeOfDay(hour: 21, minute: 0);
-  TimeOfDay endTime = const TimeOfDay(hour: 6, minute: 0);
+  TimeOfDay startTime = const TimeOfDay(hour: 0, minute: 0);
+  TimeOfDay endTime = const TimeOfDay(hour: 0, minute: 0);
   bool _isEditingTitle = false;
   late TextEditingController _titleController;
   late String roomTitle;
@@ -80,9 +80,9 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
   bool isLoading = true;
 
   final TextEditingController energyController =
-  TextEditingController(text: "20");
+  TextEditingController(text: "0");
 
-  double energyUsage = 20.0;
+  double energyUsage = 0.0;
 
   @override
   void initState() {
@@ -212,9 +212,9 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
                   id: DateTime.now().millisecondsSinceEpoch.toString(),
                   name: newDevice,
                   usageDays: [],
-                  startTime: "21:00:00",
-                  endTime: "06:00:00",
-                  usageWatt: 20,
+                  startTime: "${startTime.hour.toString().padLeft(2,'0')}:${startTime.minute.toString().padLeft(2,'0')}:00",
+                  endTime: "${endTime.hour.toString().padLeft(2,'0')}:${endTime.minute.toString().padLeft(2,'0')}:00",
+                  usageWatt: 0,
                   isLocal: true,
                 );
 
@@ -222,10 +222,10 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
                   items.add(tempItem);
                   selectedDevice = tempItem.id;
 
-                  startTime = const TimeOfDay(hour: 21, minute: 0);
-                  endTime = const TimeOfDay(hour: 6, minute: 0);
-                  energyUsage = 20;
-                  energyController.text = "20";
+                  startTime = const TimeOfDay(hour: 0, minute: 0);
+                  endTime = const TimeOfDay(hour: 0, minute: 0);
+                  energyUsage = 0;
+                  energyController.text = "0";
 
                   for (var key in days.keys) {
                     days[key] = false;
