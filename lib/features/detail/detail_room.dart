@@ -371,91 +371,96 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
   }
 
   Widget _header() {
-    return Stack(
-      children: [
-        headerImage != null
-            ? Image.file(
-          headerImage!,
-          height: 190,
-          width: double.infinity,
-          fit: BoxFit.cover,
-        )
-            : Image.asset(
-          "assets/images/home_office.jpg",
-          height: 190,
-          width: double.infinity,
-          fit: BoxFit.cover,
-        ),
-        Positioned(
-          top: 40,
-          left: 16,
-          child: CircleAvatar(
-            backgroundColor: Colors.white,
-            child: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => Navigator.pop(context),
+    return Padding(
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + 10,
+      ),
+      child: Stack(
+        children: [
+          headerImage != null
+              ? Image.file(
+            headerImage!,
+            height: 200,
+            width: double.infinity,
+            fit: BoxFit.cover,
+          )
+              : Image.asset(
+            "assets/images/home_office.jpg",
+            height: 190,
+            width: double.infinity,
+            fit: BoxFit.cover,
+          ),
+          Positioned(
+            top: 40,
+            left: 16,
+            child: CircleAvatar(
+              backgroundColor: Colors.white,
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.pop(context),
+              ),
             ),
           ),
-        ),
-        Positioned(
-          bottom: 20,
-          left: 16,
-          right: 16,
-          child: Row(
-            children: [
-              Expanded(
-                child: _isEditingTitle
-                    ? TextField(
-                  controller: _titleController,
-                  autofocus: true,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    border: InputBorder.none,
-                  ),
-                  onSubmitted: (_) => _saveTitle(),
-                )
-                    : Text(
-                  roomTitle,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
+          Positioned(
+            bottom: 20,
+            left: 16,
+            right: 16,
+            child: Row(
+              children: [
+                Expanded(
+                  child: _isEditingTitle
+                      ? TextField(
+                    controller: _titleController,
+                    autofocus: true,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      border: InputBorder.none,
+                    ),
+                    onSubmitted: (_) => _saveTitle(),
+                  )
+                      : Text(
+                    roomTitle,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-              ),
 
-              IconButton(
-                icon: Icon(
-                  _isEditingTitle ? Icons.check : Icons.edit,
-                  color: Colors.white,
+                IconButton(
+                  icon: Icon(
+                    _isEditingTitle ? Icons.check : Icons.edit,
+                    color: Colors.white,
+                  ),
+                  onPressed: () async {
+                    if (_isEditingTitle) {
+                      await _saveTitle();
+                    } else {
+                      setState(() {
+                        _isEditingTitle = true;
+                      });
+                    }
+                  },
                 ),
-                onPressed: () async {
-                  if (_isEditingTitle) {
-                    await _saveTitle();
-                  } else {
-                    setState(() {
-                      _isEditingTitle = true;
-                    });
-                  }
-                },
-              ),
 
-              IconButton(
-                icon: const Icon(Icons.camera_alt, color: Colors.white),
-                onPressed: () {
-                  _pickHeaderImage();
-                },
-              ),
-            ],
+                IconButton(
+                  icon: const Icon(Icons.camera_alt, color: Colors.white),
+                  onPressed: () {
+                    _pickHeaderImage();
+                  },
+                ),
+              ],
+            ),
           ),
-        ),
 
-      ],
+        ],
+      ),
     );
   }
 
