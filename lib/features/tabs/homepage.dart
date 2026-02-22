@@ -555,10 +555,17 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
                     }
                   });
                 } else {
-                  Navigator.push(
+                  await Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const HomeOfficePage()),
+                    MaterialPageRoute(
+                      builder: (_) => HomeOfficePage(
+                        roomId: roomId,
+                        roomName: roomName,
+                      ),
+                    ),
                   );
+
+                  _refreshRooms();
                 }
               },
               onLongPress: () async {
@@ -574,6 +581,7 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
                     ),
                   ),
                 );
+                _refreshRooms();
 
                 if (result == true) _refreshRooms();
               },
