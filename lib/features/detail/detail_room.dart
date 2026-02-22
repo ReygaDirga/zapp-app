@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'apiclient.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
 class HomeOfficePage extends StatefulWidget {
   final String roomId;
@@ -51,8 +53,13 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
   bool _isEditingTitle = false;
   late TextEditingController _titleController;
   late String roomTitle;
-  String selectedDevice = "";
+  Item? selectedItem;
   bool isSaving = false;
+  bool isDeleting = false;
+  bool isRenaming = false;
+  File? headerImage;
+  final ImagePicker _picker = ImagePicker();
+
   final Map<String, bool> days = {
     "Sunday": false,
     "Monday": false,
@@ -92,8 +99,21 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
     fetchItems();
   }
 
+  Future<void> _pickHeaderImage() async {
+    final picked = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
+
+    if (picked == null) return;
+
+    setState(() {
+      headerImage = File(picked.path);
+    });
+  }
+
   void _loadItemToUI(Item item) {
-    selectedDevice = item.id;
+    selectedItem = item;
 
     energyUsage = item.usageWatt.toDouble();
     energyController.text = item.usageWatt.toString();
@@ -133,10 +153,6 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
     try {
       final res = await ApiClient.dio
           .get('/rooms/${widget.roomId}/items');
-
-      debugPrint("ROOM ID GET: ${widget.roomId}");
-      debugPrint("ITEM STATUS: ${res.statusCode}");
-      debugPrint("ITEM DATA: ${res.data}");
       final data = res.data as List;
 
       setState(() {
@@ -148,7 +164,6 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
       });
     } catch (e) {
       setState(() => isLoading = false);
-      debugPrint("ITEM ERROR: $e");
     }
   }
 
@@ -163,14 +178,13 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
     final newTitle = _titleController.text.trim();
     if (newTitle.isEmpty) return;
 
+    setState(() => isRenaming = true);
+
     try {
-      final res = await ApiClient.dio.patch(
+      await ApiClient.dio.patch(
         '/rooms/${widget.roomId}',
         data: {"name": newTitle},
       );
-
-      debugPrint("STATUS: ${res.statusCode}");
-      debugPrint("DATA: ${res.data}");
 
       if (!mounted) return;
 
@@ -178,9 +192,10 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
         roomTitle = newTitle;
         _isEditingTitle = false;
       });
-
-    } catch (e) {
-      debugPrint("ERROR PATCH: $e");
+    } finally {
+      if (mounted) {
+        setState(() => isRenaming = false);
+      }
     }
   }
 
@@ -191,57 +206,124 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text("Add Device"),
-          content: TextField(
-            controller: deviceController,
-            decoration:
-            const InputDecoration(labelText: "Device name"),
+        return Dialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel"),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Add New Device",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.black26),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: TextField(
+                    controller: deviceController,
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text(
+                        "Cancel",
+                        style: TextStyle(color: Color(0xFF838383)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    TextButton(
+                      onPressed: () {
+                        final newDevice = deviceController.text.trim();
+                        if (newDevice.isEmpty) return;
+
+                        final tempItem = Item(
+                          id: DateTime.now().millisecondsSinceEpoch.toString(),
+                          name: newDevice,
+                          usageDays: [],
+                          startTime: "${startTime.hour.toString().padLeft(2,'0')}:${startTime.minute.toString().padLeft(2,'0')}:00",
+                          endTime: "${endTime.hour.toString().padLeft(2,'0')}:${endTime.minute.toString().padLeft(2,'0')}:00",
+                          usageWatt: 0,
+                          isLocal: true,
+                        );
+
+                        setState(() {
+                          items.add(tempItem);
+                          selectedItem = tempItem;
+                          _loadItemToUI(tempItem);
+                        });
+
+                        Navigator.pop(context);
+                      },
+                      child: const Text(
+                        "Add",
+                        style: TextStyle(color: Color(0xFF2B599C)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            TextButton(
-              onPressed: () {
-                final newDevice = deviceController.text.trim();
-                if (newDevice.isEmpty) return;
-
-                final tempItem = Item(
-                  id: DateTime.now().millisecondsSinceEpoch.toString(),
-                  name: newDevice,
-                  usageDays: [],
-                  startTime: "${startTime.hour.toString().padLeft(2,'0')}:${startTime.minute.toString().padLeft(2,'0')}:00",
-                  endTime: "${endTime.hour.toString().padLeft(2,'0')}:${endTime.minute.toString().padLeft(2,'0')}:00",
-                  usageWatt: 0,
-                  isLocal: true,
-                );
-
-                setState(() {
-                  items.add(tempItem);
-                  selectedDevice = tempItem.id;
-
-                  startTime = const TimeOfDay(hour: 0, minute: 0);
-                  endTime = const TimeOfDay(hour: 0, minute: 0);
-                  energyUsage = 0;
-                  energyController.text = "0";
-
-                  for (var key in days.keys) {
-                    days[key] = false;
-                  }
-                });
-
-                Navigator.pop(context);
-              },
-              child: const Text("Add"),
-            ),
-          ],
+          ),
         );
       },
     );
   }
 
+  Future<void> _renameItem(String newName) async {
+    setState(() => isRenaming = true);
+
+    try {
+      await ApiClient.dio.patch(
+        '/rooms/${widget.roomId}/items/${selectedItem!.id}',
+        data: {"name": newName},
+      );
+
+      setState(() {
+        selectedItem = Item(
+          id: selectedItem!.id,
+          name: newName,
+          usageDays: selectedItem!.usageDays,
+          startTime: selectedItem!.startTime,
+          endTime: selectedItem!.endTime,
+          usageWatt: selectedItem!.usageWatt,
+        );
+
+        final index =
+        items.indexWhere((e) => e.id == selectedItem!.id);
+
+        if (index != -1) {
+          items[index] = selectedItem!;
+        }
+      });
+    } finally {
+      if (mounted) {
+        setState(() => isRenaming = false);
+      }
+    }
+  }
 
   Future<void> pickTime(bool isStart) async {
     final picked = await showTimePicker(
@@ -285,109 +367,135 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF3F5F9),
-      body: Column(
+      body: Stack(
         children: [
-          _header(),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  _deviceTabs(),
-                  const SizedBox(height: 12),
+          Column(
+            children: [
+              _header(),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 12),
+                      _deviceTabs(),
+                      const SizedBox(height: 12),
+                      if (selectedItem != null) ...[
+                        _mainCard(),
+                        const SizedBox(height: 16),
+                        _saveButton(),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
 
-                  if (items.isNotEmpty && selectedDevice.isNotEmpty) ...[
-                    _mainCard(),
-                    const SizedBox(height: 16),
-                    _saveButton(),
-                  ],
-                ],
+          if (isDeleting || isRenaming)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withOpacity(0.3),
+                child: const Center(
+                  child: CircularProgressIndicator(),
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
   }
 
   Widget _header() {
-    return Stack(
-      children: [
-        Image.asset(
-          "assets/images/home_office.jpg",
-          height: 190,
-          width: double.infinity,
-          fit: BoxFit.cover,
-        ),
-        Positioned(
-          top: 40,
-          left: 16,
-          child: CircleAvatar(
-            backgroundColor: Colors.white,
-            child: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => Navigator.pop(context),
+    return Padding(
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + 10,
+      ),
+      child: Stack(
+        children: [
+          headerImage != null
+              ? Image.file(
+            headerImage!,
+            height: 200,
+            width: double.infinity,
+            fit: BoxFit.cover,
+          )
+              : Image.asset(
+            "assets/images/home_office.jpg",
+            height: 190,
+            width: double.infinity,
+            fit: BoxFit.cover,
+          ),
+          Positioned(
+            top: 40,
+            left: 16,
+            child: CircleAvatar(
+              backgroundColor: Colors.white,
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.pop(context),
+              ),
             ),
           ),
-        ),
-        Positioned(
-          bottom: 20,
-          left: 16,
-          right: 16,
-          child: Row(
-            children: [
-              Expanded(
-                child: _isEditingTitle
-                    ? TextField(
-                  controller: _titleController,
-                  autofocus: true,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    border: InputBorder.none,
-                  ),
-                  onSubmitted: (_) => _saveTitle(),
-                )
-                    : Text(
-                  roomTitle,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
+          Positioned(
+            bottom: 20,
+            left: 16,
+            right: 16,
+            child: Row(
+              children: [
+                Expanded(
+                  child: _isEditingTitle
+                      ? TextField(
+                    controller: _titleController,
+                    autofocus: true,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      border: InputBorder.none,
+                    ),
+                    onSubmitted: (_) => _saveTitle(),
+                  )
+                      : Text(
+                    roomTitle,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-              ),
 
-              IconButton(
-                icon: Icon(
-                  _isEditingTitle ? Icons.check : Icons.edit,
-                  color: Colors.white,
+                IconButton(
+                  icon: Icon(
+                    _isEditingTitle ? Icons.check : Icons.edit,
+                    color: Colors.white,
+                  ),
+                  onPressed: () async {
+                    if (_isEditingTitle) {
+                      await _saveTitle();
+                    } else {
+                      setState(() {
+                        _isEditingTitle = true;
+                      });
+                    }
+                  },
                 ),
-                onPressed: () async {
-                  if (_isEditingTitle) {
-                    await _saveTitle();
-                  } else {
-                    setState(() {
-                      _isEditingTitle = true;
-                    });
-                  }
-                },
-              ),
 
-              IconButton(
-                icon: const Icon(Icons.camera_alt, color: Colors.white),
-                onPressed: () {
-                  // TODO: open image picker
-                },
-              ),
-            ],
+                IconButton(
+                  icon: const Icon(Icons.camera_alt, color: Colors.white),
+                  onPressed: () {
+                    _pickHeaderImage();
+                  },
+                ),
+              ],
+            ),
           ),
-        ),
 
-      ],
+        ],
+      ),
     );
   }
 
@@ -409,31 +517,46 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
     if (isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Wrap(
-        spacing: 8,
+      child: Row(
         children: [
           _addDeviceChip(),
-          ...items.map((item) => _chip(item)).toList(),
+
+          const SizedBox(width: 8),
+
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  ...items.map((item) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _chip(item),
+                    );
+                  }).toList(),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
   Widget _chip(Item item) {
-    final isActive = selectedDevice == item.id;
+    final isActive = selectedItem?.id == item.id;
 
     return ChoiceChip(
-      label: Text(item.name),
-      selected: isActive,
-      showCheckmark: false,
-      selectedColor: Colors.blue[700],
-      backgroundColor: Colors.white,
-      labelStyle: TextStyle(
-        color: isActive ? Colors.white : Colors.black,
-      ),
+        label: Text(item.name),
+        selected: isActive,
+        showCheckmark: false,
+        selectedColor: Colors.blue[700],
+        backgroundColor: Colors.white,
+        labelStyle: TextStyle(
+          color: isActive ? Colors.white : Colors.black,
+        ),
         onSelected: (_) {
           final selectedItem =
           items.firstWhere((e) => e.id == item.id);
@@ -466,14 +589,96 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
                 ),
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert, size: 20),
-                  color: Colors.white, // ini bikin bg putih
-                  surfaceTintColor: Colors.white, // penting buat Material 3
+                  color: Colors.white,
+                  surfaceTintColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  onSelected: (value) {
-                    if (value == "rename") {}
-                    if (value == "delete") {}
+                  onSelected: (value) async {
+                    if (value == "delete") {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (context) {
+                          return AlertDialog(
+                            backgroundColor: Colors.white,
+                            title: const Text("Delete Item"),
+                            content: const Text(
+                                "Are you sure you want to delete this item?"),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: const Text("Cancel", style: TextStyle(color: Color(0xFF838383)),),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                child: const Text(
+                                  "Delete",
+                                  style: TextStyle(color: Color(0xFF092C4C)),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                      if (confirm == true) {
+                        setState(() => isDeleting = true);
+
+                        try {
+                          await ApiClient.dio.delete(
+                            '/rooms/${widget.roomId}/items/${selectedItem!.id}',
+                          );
+
+                          setState(() {
+                            items.removeWhere((e) => e.id == selectedItem!.id);
+
+                            if (items.isNotEmpty) {
+                              _loadItemToUI(items.first);
+                            } else {
+                              selectedItem = null;
+                            }
+                          });
+                        } finally {
+                          if (mounted) {
+                            setState(() => isDeleting = false);
+                          }
+                        }
+                      }
+                    }
+                    if (value == "rename") {
+                      final item = selectedItem!;
+                      final controller = TextEditingController(text: item.name);
+
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (context) {
+                          return AlertDialog(
+                            backgroundColor: Colors.white,
+                            title: const Text("Rename Item"),
+                            content: TextField(
+                              controller: controller,
+                              autofocus: true,
+                              decoration: const InputDecoration(
+                                labelText: "Item name",
+                              ),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: const Text("Cancel", style: TextStyle(color: Color(0xFF838383)),),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                child: const Text("Save", style: TextStyle(color: Color(0xFF092C4C)),),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+
+                      if (confirm == true && controller.text.trim().isNotEmpty) {
+                        await _renameItem(controller.text.trim());
+                      }
+                    }
                   },
                   itemBuilder: (context) => const [
                     PopupMenuItem(
@@ -670,7 +875,7 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
   }
 
   Widget _saveButton() {
-    final item = items.firstWhere((e) => e.id == selectedDevice);
+    final item = selectedItem!;
 
     final isUpdate = !item.isLocal;
 
