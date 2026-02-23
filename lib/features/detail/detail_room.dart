@@ -282,6 +282,7 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
       setState(() {
         roomTitle = newTitle;
         _isEditingTitle = false;
+        _hasChanged = true;
       });
     } finally {
       if (mounted) {
