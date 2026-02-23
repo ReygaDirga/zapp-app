@@ -423,7 +423,7 @@ class _HomeContentState extends State<HomeContent> {
                 label: roomName,
                 imagePath: roomImageUrl.isNotEmpty
                   ? roomImageUrl
-                  : "assets/images/home_office.jpg",
+                  : "assets/images/home.jpeg",
               ),
               if (_isSelectionMode)
                 Positioned(

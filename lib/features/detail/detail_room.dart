@@ -535,7 +535,7 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
                     fit: BoxFit.cover,
                   )
                 : Image.asset(
-                    "assets/images/home_office.jpg",
+                    "assets/images/home.jpeg",
                     height: 190,
                     width: double.infinity,
                     fit: BoxFit.cover,
