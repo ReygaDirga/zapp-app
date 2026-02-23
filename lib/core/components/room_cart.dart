@@ -16,13 +16,16 @@ class RoomUsageCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isNetworkImage = imagePath.startsWith("http");
     return Container(
       width: 160,
       height: 100,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         image: DecorationImage(
-          image: AssetImage(imagePath),
+          image: isNetworkImage
+              ? NetworkImage(imagePath)
+              : AssetImage(imagePath) as ImageProvider,
           fit: BoxFit.cover,
         ),
       ),

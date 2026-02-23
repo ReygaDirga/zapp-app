@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:zapp/core/components/layout.dart';
 import 'package:zapp/features/detail/apiclient.dart';
 import 'package:dio/dio.dart';
@@ -52,12 +53,42 @@ class _AddRoomPageState extends State<AddRoom> {
       builder: (_) => const Center(child: CircularProgressIndicator()),
     );
 
-    await ApiClient.dio.post(
+    final response = await ApiClient.dio.post(
       '/rooms',
       data: {
         "name": roomName,
       },
     );
+
+    final roomId = response.data['room_id'].toString();
+
+    if (_imageFile != null) {
+      final userId =
+          Supabase.instance.client.auth.currentUser!.id;
+
+      final extension = _imageFile!.path.split('.').last;
+      final filePath = "$userId/$roomId.$extension";
+
+      await Supabase.instance.client.storage
+          .from('rooms-image')
+          .upload(
+            filePath,
+            _imageFile!,
+            fileOptions:
+                const FileOptions(upsert: true),
+          );
+
+      final imageUrl = Supabase.instance.client.storage
+          .from('rooms-image')
+          .getPublicUrl(filePath);
+
+      await ApiClient.dio.patch(
+        '/rooms/$roomId',
+        data: {
+          "image_url": imageUrl,
+        },
+      );
+    }
 
     Navigator.pop(context); // close loading
     Navigator.pop(context, true); // back
