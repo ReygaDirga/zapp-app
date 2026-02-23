@@ -134,10 +134,11 @@ class HomeContent extends StatefulWidget {
   State<HomeContent> createState() => _HomeContentState();
 }
 
-class _HomeContentState extends State<HomeContent> {
+class _HomeContentState extends State<HomeContent> with RouteAware {
   String? username;
   User? user;
 
+  Timer? _retryTimer;
   bool _isFetchingUser = false;
   bool _isLoadingRooms = true;
 
@@ -158,6 +159,49 @@ class _HomeContentState extends State<HomeContent> {
     _loadUsername();
     _fetchRooms();
     _fetchUsageHistory();
+  }
+
+    void _startRetryTimer() {
+    _retryTimer?.cancel();
+    _retryTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _loadUsername(),
+    );
+  }
+
+  void _stopRetryTimer() {
+    _retryTimer?.cancel();
+  }
+
+  @override
+  void didPush() {
+    _startRetryTimer();
+  }
+
+  @override
+  void didPopNext() {
+    _startRetryTimer();
+  }
+
+  @override
+  void didPushNext() {
+    _stopRetryTimer();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    _retryTimer?.cancel();
+    super.dispose();
   }
 
   // ================= USER =================
@@ -197,6 +241,8 @@ class _HomeContentState extends State<HomeContent> {
         user = currentUser;
         username = response['username'];
       });
+
+      _retryTimer?.cancel();
     } catch (e) {
       debugPrint("Fetch user error: $e");
     } finally {
