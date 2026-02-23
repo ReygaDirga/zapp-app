@@ -28,6 +28,8 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
+  final GlobalKey<SimulationState> simulationKey = GlobalKey();
+  final GlobalKey<HistoryState> historyKey = GlobalKey();
 
   Widget _navItem(IconData icon, String label, int index) {
     final bool isActive = _currentIndex == index;
@@ -77,10 +79,10 @@ class _HomePageState extends State<HomePage> {
       backgroundColor: Colors.white,
       body: IndexedStack(
         index: _currentIndex,
-        children: const [
+        children: [
           HomeContent(),
-          SimulationPage(),
-          HistoryPage(),
+          SimulationPage(key: simulationKey),
+          HistoryPage(key: historyKey),
           NewsPage(),
         ],
       ),
@@ -94,6 +96,14 @@ class _HomePageState extends State<HomePage> {
           setState(() {
             _currentIndex = index;
           });
+
+          if (index == 1) {
+            simulationKey.currentState?.resetToAll();
+          }
+
+          if (index == 2) {
+            historyKey.currentState?.resetToAll();
+          }
         },
         items: [
           BottomNavigationBarItem(
@@ -135,13 +145,20 @@ class _HomeContentState extends State<HomeContent> {
   List<dynamic> _rooms = [];
 
   bool _isSelectionMode = false;
-  final Set<int> _selectedIndexes = {};
+  final Set<String> _selectedRoomIds = {};
+
+  Map<String, double> _roomWattMap = {};
+  double _totalAllWatt = 0;
+  bool _isLoadingUsage = true;
+
+  
 
   @override
   void initState() {
     super.initState();
     _loadUsername();
     _fetchRooms();
+    _fetchUsageHistory();
   }
 
   // ================= USER =================
@@ -208,11 +225,57 @@ class _HomeContentState extends State<HomeContent> {
     setState(() => _isLoadingRooms = false);
   }
 
+  Future<void> _fetchUsageHistory() async {
+    try {
+      setState(() {
+        _isLoadingUsage = true;
+      });
+
+      final now = DateTime.now();
+
+      final response = await ApiClient.dio.get(
+        '/usage',
+        queryParameters: {
+          "mode": "history",
+          "range": "day", // bisa day/month sesuai kebutuhan
+          "date": now.toIso8601String().split('T').first,
+        },
+      );
+
+      final data = response.data;
+
+      final List rooms = data["rooms"] ?? [];
+
+      double total = 0;
+      final Map<String, double> map = {};
+
+      for (var room in rooms) {
+        final roomId = room["roomId"].toString();
+        final watt = (room["totalWatt"] ?? 0).toDouble();
+
+        map[roomId] = watt;
+        total += watt;
+      }
+
+      setState(() {
+        _roomWattMap = map;
+        _totalAllWatt = total;
+      });
+
+    } catch (e) {
+      debugPrint("Fetch usage error: $e");
+    } finally {
+      setState(() {
+        _isLoadingUsage = false;
+      });
+    }
+  }
+
   Future<void> _refreshRooms() async {
     setState(() {
       _isLoadingRooms = true;
       _isSelectionMode = false;
-      _selectedIndexes.clear();
+      _selectedRoomIds.clear();
     });
 
     try {
@@ -236,17 +299,20 @@ class _HomeContentState extends State<HomeContent> {
       }
     }
 
+    await _fetchUsageHistory();
+
     if (!mounted) return;
     setState(() => _isLoadingRooms = false);
   }
 
   Future<void> _deleteSelectedRooms() async {
-    if (_selectedIndexes.isEmpty) return;
+    if (_selectedRoomIds.isEmpty) return;
 
-    final selectedRooms = _selectedIndexes
-        .map((i) => _rooms[i])
-        .whereType<Map>()
-        .toList();
+    final selectedRooms = _rooms.where((room) {
+      final map = room is Map ? room: {};
+      final id = (map['id'] ?? map['room_id'] ?? '').toString();
+      return _selectedRoomIds.contains(id);
+    }).toList();
 
     if (selectedRooms.isEmpty) return;
 
@@ -323,7 +389,7 @@ class _HomeContentState extends State<HomeContent> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         _isSelectionMode
-            ? Text("${_selectedIndexes.length} selected",
+            ? Text("${_selectedRoomIds.length} selected",
                 style: const TextStyle(
                     fontWeight: FontWeight.bold, fontSize: 18))
             : const Text("Usage by room",
@@ -331,7 +397,7 @@ class _HomeContentState extends State<HomeContent> {
                     fontWeight: FontWeight.bold, fontSize: 18)),
         Row(
           children: [
-            if (_isSelectionMode && _selectedIndexes.isNotEmpty)
+            if (_isSelectionMode && _selectedRoomIds.isNotEmpty)
               IconButton(
                 icon: const Icon(Icons.delete, color: Colors.red),
                 onPressed: _deleteSelectedRooms,
@@ -356,7 +422,7 @@ class _HomeContentState extends State<HomeContent> {
               onPressed: () {
                 setState(() {
                   _isSelectionMode = !_isSelectionMode;
-                  _selectedIndexes.clear();
+                  _selectedRoomIds.clear();
                 });
               },
             )
@@ -367,7 +433,7 @@ class _HomeContentState extends State<HomeContent> {
   }
 
   Widget _roomGrid() {
-    if (_isLoadingRooms) {
+    if (_isLoadingRooms || _isLoadingUsage) {
       return const Padding(
         padding: EdgeInsets.only(top: 24),
         child: Center(child: CircularProgressIndicator()),
@@ -378,10 +444,25 @@ class _HomeContentState extends State<HomeContent> {
       return const Text("No rooms yet. Add your first room.");
     }
 
+    final sortedRooms = List.from(_rooms);
+
+    sortedRooms.sort((a, b) {
+      final mapA = a is Map ? a : {};
+      final mapB = b is Map ? b : {};
+
+      final idA = (mapA['id'] ?? mapA['room_id'] ?? '').toString();
+      final idB = (mapB['id'] ?? mapB['room_id'] ?? '').toString();
+
+      final wattA = _roomWattMap[idA] ?? 0;
+      final wattB = _roomWattMap[idB] ?? 0;
+
+      return wattB.compareTo(wattA); // descending
+    });
+
     return Wrap(
       spacing: 12,
       runSpacing: 12,
-      children: _rooms.asMap().entries.map((entry) {
+      children: sortedRooms.asMap().entries.map((entry) {
         final index = entry.key;
         final room = entry.value;
 
@@ -391,13 +472,19 @@ class _HomeContentState extends State<HomeContent> {
             (roomMap['id'] ?? roomMap['room_id'] ?? '').toString();
         final roomImageUrl = (roomMap['image_url'] ?? '').toString();
 
+        final roomWatt = _roomWattMap[roomId] ?? 0;
+
+        final percentage = _totalAllWatt == 0
+          ? 0
+          : ((roomWatt / _totalAllWatt) * 100).round();
+
         return GestureDetector(
           onTap: () async {
             if (_isSelectionMode) {
               setState(() {
-                _selectedIndexes.contains(index)
-                    ? _selectedIndexes.remove(index)
-                    : _selectedIndexes.add(index);
+                _selectedRoomIds.contains(roomId)
+                    ? _selectedRoomIds.remove(roomId)
+                    : _selectedRoomIds.add(roomId);
               });
             } else {
               final result = await Navigator.push<bool>(
@@ -419,7 +506,7 @@ class _HomeContentState extends State<HomeContent> {
           child: Stack(
             children: [
               RoomUsageCard(
-                percentage: 0,
+                percentage: percentage,
                 label: roomName,
                 imagePath: roomImageUrl.isNotEmpty
                   ? roomImageUrl
@@ -432,10 +519,10 @@ class _HomeContentState extends State<HomeContent> {
                   child: CircleAvatar(
                     radius: 12,
                     backgroundColor:
-                        _selectedIndexes.contains(index)
+                        _selectedRoomIds.contains(roomId)
                             ? Colors.blue
                             : Colors.white,
-                    child: _selectedIndexes.contains(index)
+                    child: _selectedRoomIds.contains(roomId)
                         ? const Icon(Icons.check,
                             size: 14, color: Colors.white)
                         : null,

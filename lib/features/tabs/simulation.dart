@@ -8,16 +8,17 @@ import 'package:path_provider/path_provider.dart';
 import 'package:zapp/features/detail/apiclient.dart';
 import 'package:zapp/features/models/usage_item.dart';
 import 'package:zapp/features/models/room.dart';
+import 'package:zapp/routes/route_observer.dart';
 enum DateMode { day, month, year }
 
 class SimulationPage extends StatefulWidget {
   const SimulationPage({super.key});
 
   @override
-  State<SimulationPage> createState() => _SimulationState();
+  State<SimulationPage> createState() => SimulationState();
 }
 
-class _SimulationState extends State<SimulationPage> {
+class SimulationState extends State<SimulationPage> with RouteAware {
   final TextEditingController _roomNameController = TextEditingController();
   DateMode _mode = DateMode.day;
   late DateTime _selectedDate;
@@ -36,6 +37,18 @@ class _SimulationState extends State<SimulationPage> {
   if (text.isEmpty) return text;
   return text[0].toUpperCase() + text.substring(1);
 }
+
+  void resetToAll() {
+    setState(() {
+      selectedRoom = null;
+    });
+    refreshData();
+  }
+
+  void refreshData() {
+    fetchRooms();
+    fetchUsage();
+  }
 
   List<UsageItem> itemList = [];
   bool isLoading = false;
@@ -110,8 +123,15 @@ class _SimulationState extends State<SimulationPage> {
 
     final data = response.data as List;
 
+    final rooms = data.map((e) => Room.fromJson(e)).toList();
+    rooms.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+
     setState(() {
-      roomList = data.map((e) => Room.fromJson(e)).toList();
+      roomList = rooms;
+      if (selectedRoom != null &&
+          !roomList.any((r) => r.roomId == selectedRoom)) {
+        selectedRoom = null;
+      }
     });
   } catch (e) {
       print(e);
@@ -122,6 +142,7 @@ class _SimulationState extends State<SimulationPage> {
 
   @override
   void dispose() {
+    routeObserver.unsubscribe(this);
     _roomNameController.dispose();
     super.dispose();
   }
@@ -134,6 +155,21 @@ class _SimulationState extends State<SimulationPage> {
     _selectedDate = now;
     _yearPageStart = now.year - (_yearPageSize ~/ 2);
 
+    fetchRooms();
+    fetchUsage();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void didPopNext() {
     fetchRooms();
     fetchUsage();
   }
@@ -899,7 +935,9 @@ class _SimulationState extends State<SimulationPage> {
                     return DropdownMenuItem<String?>(value: room.roomId, child: Text(room.name));
                   }).toList(),
                 ],
-                onChanged: (value) {
+                onChanged: isLoading
+                ? null
+                : (value) {
                   setState(() {
                     selectedRoom = value;
                   });
