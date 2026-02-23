@@ -516,7 +516,7 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
   Widget _header() {
     return Padding(
       padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + 10,
+        top: MediaQuery.of(context).padding.top,
       ),
       child: Stack(
         children: [
@@ -536,7 +536,7 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
                   )
                 : Image.asset(
                     "assets/images/home.jpeg",
-                    height: 190,
+                    height: 200,
                     width: double.infinity,
                     fit: BoxFit.cover,
                   ),
