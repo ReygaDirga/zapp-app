@@ -4,7 +4,6 @@ import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:zapp/core/cache/user_cache.dart';
-import 'package:zapp/features/support/notifications.dart';
 import 'package:zapp/features/profile/profile_page.dart';
 import 'package:zapp/routes/route_observer.dart';
 import 'package:zapp/core/components/carousel.dart';
@@ -622,16 +621,6 @@ class _HomeContentState extends State<HomeContent> {
             ],
           ),
         ),
-        IconButton(
-          icon: const Icon(Icons.notifications_none_rounded),
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (_) => const NotificationsPage()),
-            );
-          },
-        )
       ],
     );
   }

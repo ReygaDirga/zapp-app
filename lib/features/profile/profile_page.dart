@@ -218,12 +218,6 @@ class _ProfilePageState extends State<ProfilePage> {
                  );
                 },
             ),
-            _divider(),
-
-            _switchItem(
-              icon: Icons.notifications,
-              title: 'Notifications',
-            ),
 
             _sectionTitle('Other'),
 
