@@ -1078,6 +1078,8 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
 
               await fetchItems();
               _roomItemsCache[widget.roomId] = items;
+
+              _hasChanged = true;
             } finally {
               if (mounted) {
                 setState(() => isSaving = false);
