@@ -364,7 +364,16 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
                         setState(() {
                           items.add(tempItem);
                           selectedItem = tempItem;
-                          _loadItemToUI(tempItem);
+
+                          startTime = const TimeOfDay(hour: 0, minute: 0);
+                          endTime = const TimeOfDay(hour: 0, minute: 0);
+
+                          for (var key in days.keys) {
+                            days[key] = false;
+                          }
+
+                          energyUsage = 0;
+                          energyController.text = "0";
                         });
 
                         Navigator.pop(context, true);
