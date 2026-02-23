@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
@@ -881,8 +882,7 @@ class _SimulationState extends State<SimulationPage> {
               ),
               const SizedBox(height: 8),
 
-              DropdownButtonFormField<String?>(
-                dropdownColor: Colors.white,
+              DropdownButtonFormField2<String?>(
                 value: selectedRoom,
                 isExpanded: true,
                 decoration: InputDecoration(
@@ -906,6 +906,21 @@ class _SimulationState extends State<SimulationPage> {
 
                   fetchUsage();
                 },
+                dropdownStyleData: DropdownStyleData(
+                  width: MediaQuery.of(context).size.width - 40,
+                  maxHeight: 280,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    // borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  )
+                ),
               ),
 
               const SizedBox(height: 12),
