@@ -1,4 +1,7 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'apiclient.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
@@ -6,11 +9,13 @@ import 'package:image_picker/image_picker.dart';
 class HomeOfficePage extends StatefulWidget {
   final String roomId;
   final String roomName;
+  final String imageUrl;
 
   const HomeOfficePage({
     super.key,
     required this.roomId,
     required this.roomName,
+    required this.imageUrl,
   });
 
   @override
@@ -47,6 +52,8 @@ class Item {
   }
 }
 
+final Map<String, List<Item>> _roomItemsCache = {};
+
 class _HomeOfficePageState extends State<HomeOfficePage> {
   TimeOfDay startTime = const TimeOfDay(hour: 0, minute: 0);
   TimeOfDay endTime = const TimeOfDay(hour: 0, minute: 0);
@@ -59,6 +66,9 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
   bool isRenaming = false;
   File? headerImage;
   final ImagePicker _picker = ImagePicker();
+  String? imageUrl;
+  bool isUploadingImage = false;
+  bool _hasChanged = false;
 
   final Map<String, bool> days = {
     "Sunday": false,
@@ -96,7 +106,20 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
     super.initState();
     roomTitle = widget.roomName;
     _titleController = TextEditingController(text: roomTitle);
-    fetchItems();
+
+    imageUrl = widget.imageUrl;
+
+    if (_roomItemsCache.containsKey(widget.roomId)) {
+      items = _roomItemsCache[widget.roomId]!;
+
+      if (items.isNotEmpty) {
+        _loadItemToUI(items.first);
+      }
+
+      isLoading = false;
+    } else {
+      fetchItems();
+    }
   }
 
   Future<void> _pickHeaderImage() async {
@@ -107,9 +130,74 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
 
     if (picked == null) return;
 
+    final file = File(picked.path);
+
     setState(() {
-      headerImage = File(picked.path);
+      headerImage = file;
+      isUploadingImage = true;
     });
+
+    try {
+      final supabase = Supabase.instance.client;
+      final userId = supabase.auth.currentUser!.id;
+
+      if (imageUrl != null && imageUrl!.isNotEmpty) {
+      final uri = Uri.parse(imageUrl!);
+      final oldPath = uri.pathSegments
+          .skipWhile((segment) => segment != 'rooms-image')
+          .skip(1)
+          .join('/');
+
+      if (oldPath.isNotEmpty) {
+        await supabase.storage
+            .from('rooms-image')
+            .remove([oldPath]);
+      }
+    }
+
+    final extension = file.path.split('.').last;
+    final randomName =
+        "${widget.roomId}_${DateTime.now().millisecondsSinceEpoch}.$extension";
+
+    final newPath = "$userId/$randomName";
+
+
+      await supabase.storage
+        .from('rooms-image')
+        .upload(newPath, file, fileOptions: const FileOptions(upsert: true));
+
+      final publicUrl =
+        supabase.storage
+          .from('rooms-image')
+          .getPublicUrl(newPath);
+
+      await ApiClient.dio.patch(
+        '/rooms/${widget.roomId}',
+        data: {
+          "image_url": publicUrl,
+        },
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        imageUrl = publicUrl;
+        headerImage = null;
+        _hasChanged = true;
+      });
+    } catch (e) {
+      debugPrint("Upload header image error : $e");
+
+      ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Failed to upload image")),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isUploadingImage = false;
+        });
+      }
+    }
   }
 
   void _loadItemToUI(Item item) {
@@ -152,19 +240,22 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
   Future<void> fetchItems() async {
     try {
       final res = await ApiClient.dio
-          .get('/rooms/${widget.roomId}/items');
+        .get('/rooms/${widget.roomId}/items');
       final data = res.data as List;
 
-      setState(() {
-        items = data.map((e) => Item.fromJson(e)).toList();
-        if (items.isNotEmpty) {
-          _loadItemToUI(items.first);
-        }
-        isLoading = false;
-      });
+      items = data.map((e) => Item.fromJson(e)).toList();
+
+      _roomItemsCache[widget.roomId] = items;
+
+      if (items.isNotEmpty) {
+        _loadItemToUI(items.first);
+      }
     } catch (e) {
-      setState(() => isLoading = false);
+      debugPrint("Fetch items error: $e");
     }
+
+    if (!mounted) return;
+    setState(() => isLoading = false);
   }
 
   @override
@@ -247,7 +338,7 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () => Navigator.pop(context, true),
                       child: const Text(
                         "Cancel",
                         style: TextStyle(color: Color(0xFF838383)),
@@ -275,7 +366,7 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
                           _loadItemToUI(tempItem);
                         });
 
-                        Navigator.pop(context);
+                        Navigator.pop(context, true);
                       },
                       child: const Text(
                         "Add",
@@ -365,43 +456,60 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
   }
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF3F5F9),
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              _header(),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 12),
-                      _deviceTabs(),
-                      const SizedBox(height: 12),
-                      if (selectedItem != null) ...[
-                        _mainCard(),
-                        const SizedBox(height: 16),
-                        _saveButton(),
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.pop(context, _hasChanged);
+        return false;
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF3F5F9),
+        body: Stack(
+          children: [
+            Column(
+              children: [
+                _header(),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 12),
+                        _deviceTabs(),
+                        const SizedBox(height: 12),
+                        if (selectedItem != null) ...[
+                          _mainCard(),
+                          const SizedBox(height: 16),
+                          _saveButton(),
+                          const SizedBox(height: 24)
+                        ],
                       ],
-                    ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            if (isDeleting || isRenaming)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black.withOpacity(0.3),
+                  child: const Center(
+                    child: CircularProgressIndicator(),
                   ),
                 ),
               ),
-            ],
-          ),
 
-          if (isDeleting || isRenaming)
-            Positioned.fill(
-              child: Container(
-                color: Colors.black.withOpacity(0.3),
-                child: const Center(
-                  child: CircularProgressIndicator(),
+            if (isUploadingImage)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black.withOpacity(0.3),
+                  child: const Center(
+                    child: CircularProgressIndicator(),
+                  ),
                 ),
               ),
-            ),
-        ],
-      ),
+          ],
+        ),
+      )
     );
   }
 
@@ -419,11 +527,33 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
             width: double.infinity,
             fit: BoxFit.cover,
           )
-              : Image.asset(
-            "assets/images/home_office.jpg",
-            height: 190,
+              : imageUrl != null && imageUrl!.isNotEmpty
+                ? Image.network(
+                    imageUrl!,
+                    height: 200,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  )
+                : Image.asset(
+                    "assets/images/home_office.jpg",
+                    height: 190,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+          Container(
+            height: 200,
             width: double.infinity,
-            fit: BoxFit.cover,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.bottomCenter,
+                end: Alignment.topCenter,
+                colors: [
+                  Colors.black.withOpacity(0.55),
+                  Colors.black.withOpacity(0.25),
+                  Colors.transparent,
+                ],
+              ),
+            ),
           ),
           Positioned(
             top: 40,
@@ -432,7 +562,7 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
               backgroundColor: Colors.white,
               child: IconButton(
                 icon: const Icon(Icons.arrow_back),
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop(context, _hasChanged),
               ),
             ),
           ),
@@ -630,6 +760,8 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
 
                           setState(() {
                             items.removeWhere((e) => e.id == selectedItem!.id);
+
+                            _roomItemsCache[widget.roomId] = items;
 
                             if (items.isNotEmpty) {
                               _loadItemToUI(items.first);
@@ -933,6 +1065,7 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
               }
 
               await fetchItems();
+              _roomItemsCache[widget.roomId] = items;
             } finally {
               if (mounted) {
                 setState(() => isSaving = false);

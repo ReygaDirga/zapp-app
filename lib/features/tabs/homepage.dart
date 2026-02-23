@@ -125,52 +125,26 @@ class HomeContent extends StatefulWidget {
   State<HomeContent> createState() => _HomeContentState();
 }
 
-class _HomeContentState extends State<HomeContent> with RouteAware {
+class _HomeContentState extends State<HomeContent> {
   String? username;
   User? user;
 
-  Timer? _retryTimer;
-  bool _isFetching = false;
+  bool _isFetchingUser = false;
+  bool _isLoadingRooms = true;
+
+  List<dynamic> _rooms = [];
 
   bool _isSelectionMode = false;
   final Set<int> _selectedIndexes = {};
-
-  // ✅ Rooms state
-  late Future<List<dynamic>> _futureRooms;
 
   @override
   void initState() {
     super.initState();
     _loadUsername();
-    _futureRooms = _fetchRooms();
+    _fetchRooms();
   }
 
-  void _startRetryTimer() {
-    _retryTimer?.cancel();
-    _retryTimer = Timer.periodic(
-      const Duration(seconds: 5),
-      (_) => _loadUsername(),
-    );
-  }
-
-  void _stopRetryTimer() {
-    _retryTimer?.cancel();
-  }
-
-  @override
-  void didPush() {
-    _startRetryTimer();
-  }
-
-  @override
-  void didPopNext() {
-    _startRetryTimer();
-  }
-
-  @override
-  void didPushNext() {
-    _stopRetryTimer();
-  }
+  // ================= USER =================
 
   Future<void> _loadUsername() async {
     if (UserCache.isReady) {
@@ -181,8 +155,8 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
       return;
     }
 
-    if (_isFetching) return;
-    _isFetching = true;
+    if (_isFetchingUser) return;
+    _isFetchingUser = true;
 
     try {
       final supabase = Supabase.instance.client;
@@ -202,143 +176,126 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
       UserCache.avatarUrl = response['avatar_url'];
 
       if (!mounted) return;
+
       setState(() {
         user = currentUser;
         username = response['username'];
       });
-
-      _retryTimer?.cancel();
-    } catch (_) {
-      debugPrint('Homepage: fetch failed, will retry...');
+    } catch (e) {
+      debugPrint("Fetch user error: $e");
     } finally {
-      _isFetching = false;
+      _isFetchingUser = false;
     }
   }
 
-  // ✅ Fetch rooms from backend
-  Future<List<dynamic>> _fetchRooms() async {
-    final res = await ApiClient.dio.get('/rooms');
-    final data = res.data;
+  // ================= ROOMS =================
 
-    // API returns List
-    if (data is List) return data;
+  Future<void> _fetchRooms() async {
+    try {
+      final res = await ApiClient.dio.get('/rooms');
+      final data = res.data;
 
-    // API returns { data: [...] }
-    if (data is Map && data['data'] is List) return data['data'] as List;
+      if (data is List) {
+        _rooms = data;
+      } else if (data is Map && data['data'] is List) {
+        _rooms = data['data'];
+      }
+    } catch (e) {
+      debugPrint("Fetch rooms error: $e");
+    }
 
-    return [];
+    if (!mounted) return;
+    setState(() => _isLoadingRooms = false);
   }
 
-  void _refreshRooms() {
+  Future<void> _refreshRooms() async {
     setState(() {
-      _futureRooms = _fetchRooms();
-      _selectedIndexes.clear();
+      _isLoadingRooms = true;
       _isSelectionMode = false;
-    });
-  }
-
-  void _toggleSelectionMode() {
-    setState(() {
-      _isSelectionMode = !_isSelectionMode;
       _selectedIndexes.clear();
     });
+
+    try {
+      final res = await ApiClient.dio.get('/rooms');
+      final data = res.data;
+
+      if (data is List) {
+        _rooms = data;
+      } else if (data is Map && data['data'] is List) {
+        _rooms = data['data'];
+      }
+    } catch (e) {
+      debugPrint("Refresh rooms error: $e");
+    }
+
+    for (final room in _rooms) {
+      final roomMap = room is Map ? room : {};
+      final url = (roomMap['image_url'] ?? '').toString();
+      if (url.isNotEmpty) {
+        await NetworkImage(url).evict();
+      }
+    }
+
+    if (!mounted) return;
+    setState(() => _isLoadingRooms = false);
   }
 
-  Future<void> _deleteSelectedRooms(List<dynamic> rooms) async {
+  Future<void> _deleteSelectedRooms() async {
     if (_selectedIndexes.isEmpty) return;
 
     final selectedRooms = _selectedIndexes
-        .map((i) => rooms[i])
+        .map((i) => _rooms[i])
         .whereType<Map>()
         .toList();
 
     if (selectedRooms.isEmpty) return;
 
-    // For simplicity: delete one-by-one via DeleteRoomPage flow OR direct DELETE calls.
-    // Here: if 1 selected -> open DeleteRoomPage; if many -> delete sequentially via API.
-    if (selectedRooms.length > 0) {
-      final room = selectedRooms.first;
-      final roomId = (room['id'] ?? room['room_id'] ?? '').toString();
-      final roomName = (room['name'] ?? '-').toString();
-      if (roomId.isEmpty) return;
-
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (_) => AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          title: const Text(
-            "Delete room?",
-            style: TextStyle(
+        title: const Text("Delete room?",
+        style: TextStyle(
               color: Colors.black,
               fontWeight: FontWeight.bold,
             ),
-          ),
-          content: Text(
+        ),
+        content: Text(
             "You are about to delete ${selectedRooms.length} rooms. This action cannot be undone.",
-            style: const TextStyle(color: Color(0xFF838383)),
+            style: const TextStyle(color: Colors.black),
+            ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel",
+            style: TextStyle(color: Color(0xFF838383)),
+            ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text(
-                "Cancel",
-                style: TextStyle(color: Color(0xFF838383)),
-              ),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text(
-                "Delete",
-                style: TextStyle(color: Color(0xFF092C4C)),
-              ),
-            ),
-          ],
-        ),
-      );
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Delete",
+                style: TextStyle(color: Color.fromARGB(255, 255, 0, 0)),
+                ),
+          ),
+        ],
+      ),
+    );
 
-      if (confirmed != true) return;
+    if (confirmed != true) return;
 
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => const Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-
-      if (selectedRooms.length == 1) {
-        await ApiClient.dio.delete('/rooms/$roomId');
-      } else {
-        for (final room in selectedRooms) {
-          final id = (room['id'] ?? room['room_id'] ?? '').toString();
-          if (id.isEmpty) continue;
-          await ApiClient.dio.delete('/rooms/$id');
-        }
-      }
-
-      if (mounted) Navigator.pop(context);
-      _refreshRooms();
+    for (final room in selectedRooms) {
+      final id = (room['id'] ?? room['room_id'] ?? '').toString();
+      if (id.isEmpty) continue;
+      await ApiClient.dio.delete('/rooms/$id');
     }
+
+    await _refreshRooms();
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final route = ModalRoute.of(context);
-    if (route is PageRoute) {
-      routeObserver.subscribe(this, route);
-    }
-  }
-
-  @override
-  void dispose() {
-    routeObserver.unsubscribe(this);
-    _retryTimer?.cancel();
-    super.dispose();
-  }
+  // ================= UI =================
 
   @override
   Widget build(BuildContext context) {
@@ -352,12 +309,142 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
             const SizedBox(height: 16),
             const TopCarousel(),
             const SizedBox(height: 24),
-            _usageHeader(context),
+            _usageHeader(),
             const SizedBox(height: 12),
             _roomGrid(),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _usageHeader() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        _isSelectionMode
+            ? Text("${_selectedIndexes.length} selected",
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 18))
+            : const Text("Usage by room",
+                style: TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 18)),
+        Row(
+          children: [
+            if (_isSelectionMode && _selectedIndexes.isNotEmpty)
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: _deleteSelectedRooms,
+              ),
+            if (!_isSelectionMode)
+              IconButton(
+                icon: const Icon(Icons.add),
+                onPressed: () async {
+                  final result = await Navigator.push<bool>(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AddRoom()),
+                  );
+
+                  if (result == true) {
+                    await _refreshRooms();
+                  }
+                },
+              ),
+            IconButton(
+              icon: Icon(
+                  _isSelectionMode ? Icons.close : Icons.more_vert),
+              onPressed: () {
+                setState(() {
+                  _isSelectionMode = !_isSelectionMode;
+                  _selectedIndexes.clear();
+                });
+              },
+            )
+          ],
+        )
+      ],
+    );
+  }
+
+  Widget _roomGrid() {
+    if (_isLoadingRooms) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 24),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_rooms.isEmpty) {
+      return const Text("No rooms yet. Add your first room.");
+    }
+
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: _rooms.asMap().entries.map((entry) {
+        final index = entry.key;
+        final room = entry.value;
+
+        final roomMap = room is Map ? room : <String, dynamic>{};
+        final roomName = (roomMap['name'] ?? '-').toString();
+        final roomId =
+            (roomMap['id'] ?? roomMap['room_id'] ?? '').toString();
+        final roomImageUrl = (roomMap['image_url'] ?? '').toString();
+
+        return GestureDetector(
+          onTap: () async {
+            if (_isSelectionMode) {
+              setState(() {
+                _selectedIndexes.contains(index)
+                    ? _selectedIndexes.remove(index)
+                    : _selectedIndexes.add(index);
+              });
+            } else {
+              final result = await Navigator.push<bool>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => HomeOfficePage(
+                    roomId: roomId,
+                    roomName: roomName,
+                    imageUrl: roomImageUrl,
+                  ),
+                ),
+              );
+
+              if (result == true) {
+                await _refreshRooms();
+              }
+            }
+          },
+          child: Stack(
+            children: [
+              RoomUsageCard(
+                percentage: 0,
+                label: roomName,
+                imagePath: roomImageUrl.isNotEmpty
+                  ? roomImageUrl
+                  : "assets/images/home_office.jpg",
+              ),
+              if (_isSelectionMode)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: CircleAvatar(
+                    radius: 12,
+                    backgroundColor:
+                        _selectedIndexes.contains(index)
+                            ? Colors.blue
+                            : Colors.white,
+                    child: _selectedIndexes.contains(index)
+                        ? const Icon(Icons.check,
+                            size: 14, color: Colors.white)
+                        : null,
+                  ),
+                ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -377,7 +464,8 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
             backgroundImage: UserCache.avatarUrl != null &&
                     UserCache.avatarUrl!.isNotEmpty
                 ? NetworkImage(UserCache.avatarUrl!)
-                : const AssetImage("assets/icon/profile.jpg") as ImageProvider,
+                : const AssetImage("assets/icon/profile.jpg")
+                    as ImageProvider,
           ),
         ),
         const SizedBox(width: 10),
@@ -386,61 +474,63 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SizedBox(
-                width: 180,
+                height: 18,
                 child: AnimatedTextKit(
                   repeatForever: true,
                   pause: const Duration(milliseconds: 1000),
                   animatedTexts: [
                     TyperAnimatedText("Hi",
                         textStyle:
-                            const TextStyle(fontSize: 14, color: Colors.grey)),
+                            TextStyle(fontSize: 14, color: Colors.grey)),
                     TyperAnimatedText("Halo",
                         textStyle:
-                            const TextStyle(fontSize: 14, color: Colors.grey)),
+                            TextStyle(fontSize: 14, color: Colors.grey)),
                     TyperAnimatedText("Bonjour",
                         textStyle:
-                            const TextStyle(fontSize: 14, color: Colors.grey)),
+                            TextStyle(fontSize: 14, color: Colors.grey)),
                     TyperAnimatedText("Hola",
                         textStyle:
-                            const TextStyle(fontSize: 14, color: Colors.grey)),
+                            TextStyle(fontSize: 14, color: Colors.grey)),
                     TyperAnimatedText("Aloha",
                         textStyle:
-                            const TextStyle(fontSize: 14, color: Colors.grey)),
+                            TextStyle(fontSize: 14, color: Colors.grey)),
                     TyperAnimatedText("您好",
                         textStyle:
-                            const TextStyle(fontSize: 14, color: Colors.grey)),
+                            TextStyle(fontSize: 14, color: Colors.grey)),
                     TyperAnimatedText("こんにちは",
                         textStyle:
-                            const TextStyle(fontSize: 14, color: Colors.grey)),
+                            TextStyle(fontSize: 14, color: Colors.grey)),
                     TyperAnimatedText("안녕하세요",
                         textStyle:
-                            const TextStyle(fontSize: 14, color: Colors.grey)),
+                            TextStyle(fontSize: 14, color: Colors.grey)),
                     TyperAnimatedText("Zdravstvuyte",
                         textStyle:
-                            const TextStyle(fontSize: 14, color: Colors.grey)),
+                            TextStyle(fontSize: 14, color: Colors.grey)),
                     TyperAnimatedText("Sàwàtdee",
                         textStyle:
-                            const TextStyle(fontSize: 14, color: Colors.grey)),
+                            TextStyle(fontSize: 14, color: Colors.grey)),
                     TyperAnimatedText("Guten Tag",
                         textStyle:
-                            const TextStyle(fontSize: 14, color: Colors.grey)),
+                            TextStyle(fontSize: 14, color: Colors.grey)),
                     TyperAnimatedText("Ciao",
                         textStyle:
-                            const TextStyle(fontSize: 14, color: Colors.grey)),
+                            TextStyle(fontSize: 14, color: Colors.grey)),
                     TyperAnimatedText("مرحبا",
                         textStyle:
-                            const TextStyle(fontSize: 14, color: Colors.grey)),
+                            TextStyle(fontSize: 14, color: Colors.grey)),
                     TyperAnimatedText("Olá",
                         textStyle:
-                            const TextStyle(fontSize: 14, color: Colors.grey)),
+                            TextStyle(fontSize: 14, color: Colors.grey)),
                   ],
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 username ?? '-',
-                style:
-                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ),
             ],
           ),
@@ -450,167 +540,12 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
           onPressed: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const NotificationsPage()),
+              MaterialPageRoute(
+                  builder: (_) => const NotificationsPage()),
             );
           },
         )
       ],
-    );
-  }
-
-  Widget _usageHeader(BuildContext context) {
-    return FutureBuilder<List<dynamic>>(
-      future: _futureRooms,
-      builder: (context, snapshot) {
-        final rooms = snapshot.data ?? [];
-
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _isSelectionMode
-                ? Text(
-                    "${_selectedIndexes.length} selected",
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
-                  )
-                : const Text(
-                    "Usage by room",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                  ),
-            Row(
-              children: [
-                if (_isSelectionMode && _selectedIndexes.isNotEmpty)
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () => _deleteSelectedRooms(rooms),
-                  ),
-                if (!_isSelectionMode)
-                  IconButton(
-                    onPressed: () async {
-                      final result = await Navigator.push<bool>(
-                        context,
-                        MaterialPageRoute(builder: (_) => const AddRoom()),
-                      );
-                      if (result == true) _refreshRooms();
-                    },
-                    icon: const Icon(Icons.add),
-                  ),
-                IconButton(
-                  onPressed: _toggleSelectionMode,
-                  icon: Icon(_isSelectionMode ? Icons.close : Icons.more_vert),
-                ),
-              ],
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget  _roomGrid() {
-    return FutureBuilder<List<dynamic>>(
-      future: _futureRooms,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.only(top: 24),
-              child: CircularProgressIndicator(),
-            ),
-          );
-        }
-
-        if (snapshot.hasError) {
-          return Text(snapshot.error.toString());
-        }
-
-        final rooms = snapshot.data ?? [];
-
-        if (rooms.isEmpty) {
-          return const Text("No rooms yet. Add your first room.");
-        }
-
-        return Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: rooms.asMap().entries.map((entry) {
-            final index = entry.key;
-            final room = entry.value;
-
-            final roomMap = room is Map ? room : <String, dynamic>{};
-
-            final roomName = (roomMap['name'] ?? '-').toString();
-            final roomId = (roomMap['id'] ?? roomMap['room_id'] ?? '').toString();
-
-            return GestureDetector(
-              onTap: () async {
-                if (_isSelectionMode) {
-                  setState(() {
-                    if (_selectedIndexes.contains(index)) {
-                      _selectedIndexes.remove(index);
-                    } else {
-                      _selectedIndexes.add(index);
-                    }
-                  });
-                } else {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => HomeOfficePage(
-                        roomId: roomId,
-                        roomName: roomName,
-                      ),
-                    ),
-                  );
-
-                  _refreshRooms();
-                }
-              },
-              onLongPress: () async {
-                // Long press: open delete page for single room
-                if (roomId.isEmpty) return;
-
-                final result = await Navigator.push<bool>(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => DeleteRoomPage(
-                      roomId: roomId,
-                      roomName: roomName,
-                    ),
-                  ),
-                );
-                _refreshRooms();
-
-                if (result == true) _refreshRooms();
-              },
-              child: Stack(
-                children: [
-                  RoomUsageCard(
-                    percentage: 0,
-                    label: roomName,
-                    imagePath: "assets/images/home_office.jpg",
-                  ),
-                  if (_isSelectionMode)
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: CircleAvatar(
-                        radius: 12,
-                        backgroundColor:
-                            _selectedIndexes.contains(index) ? Colors.blue : Colors.white,
-                        child: _selectedIndexes.contains(index)
-                            ? const Icon(Icons.check, size: 14, color: Colors.white)
-                            : null,
-                      ),
-                    ),
-                ],
-              ),
-            );
-          }).toList(),
-        );
-      },
     );
   }
 }
