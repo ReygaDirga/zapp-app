@@ -489,21 +489,24 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
             ),
 
             if (isDeleting || isRenaming)
-              Positioned.fill(
-                child: Container(
-                  color: Colors.black.withOpacity(0.3),
-                  child: const Center(
-                    child: CircularProgressIndicator(),
+              Container(
+                width: double.infinity,
+                height: double.infinity,
+                color: Colors.black.withOpacity(0.3),
+                child: const Center(
+                  child: CircularProgressIndicator(
+
                   ),
                 ),
               ),
 
             if (isUploadingImage)
-              Positioned.fill(
-                child: Container(
-                  color: Colors.black.withOpacity(0.3),
-                  child: const Center(
-                    child: CircularProgressIndicator(),
+              Container(
+                width: double.infinity,
+                height: double.infinity,
+                color: Colors.black.withOpacity(0.3),
+                child: const Center(
+                  child: CircularProgressIndicator(
                   ),
                 ),
               ),
