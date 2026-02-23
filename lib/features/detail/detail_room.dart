@@ -630,18 +630,26 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
   }
 
   Widget _addDeviceChip() {
-    return ActionChip(
-      avatar: const Icon(Icons.add, size: 18),
-      label: const Text(""),
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(
+  return InkWell(
+    borderRadius: BorderRadius.circular(8),
+    onTap: _showAddDeviceDialog,
+    child: Container(
+      width: 40,
+      height: 36,
+      decoration: BoxDecoration(
+        color: Colors.white,
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade300),
       ),
-      onPressed: () {
-        _showAddDeviceDialog();
-      },
-    );
-  }
+      child: const Center(
+        child: Icon(
+          Icons.add,
+          size: 20,
+        ),
+      ),
+    ),
+  );
+}
 
   Widget _deviceTabs() {
     if (isLoading) {
