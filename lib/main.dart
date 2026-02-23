@@ -32,6 +32,12 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Color(0xFF053886),
+        ),
+        useMaterial3: true,
+      ),
       title: "ZAPP",
       navigatorObservers: [routeObserver],
       home: const AuthGate(),
