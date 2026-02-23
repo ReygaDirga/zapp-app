@@ -889,7 +889,7 @@ class HistoryState extends State<HistoryPage> with RouteAware {
                                   end: item.endTime,
                                   watt: '${item.usageWatt} watt',
                                   price: '${currencyFormatter.format(item.totalCost)}',
-                                  wattColor: Colors.red,
+                                  wattColor: Colors.black,
                                 );
                               },
                             ),
@@ -1120,7 +1120,7 @@ class HistoryState extends State<HistoryPage> with RouteAware {
                             end: itemList.first.endTime,
                             watt: '${itemList.first.usageWatt} Watt',
                             price: '${currencyFormatter.format(itemList.first.totalCost)}',
-                            wattColor: Colors.red,
+                            wattColor: Colors.black,
                           ),
                   ],
                 ),
