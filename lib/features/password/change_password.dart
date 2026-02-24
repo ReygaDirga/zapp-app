@@ -211,14 +211,6 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                       borderRadius: BorderRadius.circular(24),
                     ),
                   ),
-                  // child: const Text(
-                  //   'Continue',
-                  //   style: TextStyle(
-                  //     fontSize: 16,
-                  //     fontWeight: FontWeight.w600,
-                  //     color: Colors.white,
-                  //   ),
-                  // ),
                   child: Text(isLoading ? 'Continuing...' : 'Continue'),
                 ),
               ),

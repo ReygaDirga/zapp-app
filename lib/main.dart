@@ -3,7 +3,6 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:zapp/core/auth/auth_gate.dart';
 import 'package:zapp/routes/route_observer.dart';
-import 'core/auth/welcome.dart';
 import 'package:zapp/core/auth/login.dart';
 import 'core/auth/email.dart';
 import 'core/auth/otp.dart';
@@ -33,6 +32,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
+        fontFamily: "Helvetica",
         colorScheme: ColorScheme.fromSeed(
           seedColor: Color(0xFF053886),
         ),

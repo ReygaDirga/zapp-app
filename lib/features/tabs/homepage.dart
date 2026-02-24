@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -8,15 +7,12 @@ import 'package:zapp/features/profile/profile_page.dart';
 import 'package:zapp/routes/route_observer.dart';
 import 'package:zapp/core/components/carousel.dart';
 import 'package:zapp/core/components/room_cart.dart';
-
 import 'simulation.dart';
 import 'history.dart';
 import 'news.dart';
-
-import 'package:zapp/features/detail/addroom.dart';
+import 'package:zapp/features/detail/add_room.dart';
 import 'package:zapp/features/detail/detail_room.dart';
-import 'package:zapp/features/detail/apiclient.dart';
-import 'package:zapp/features/detail/delroom.dart';
+import 'package:zapp/features/detail/api_client.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -203,9 +199,6 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
     _retryTimer?.cancel();
     super.dispose();
   }
-
-  // ================= USER =================
-
   Future<void> _loadUsername() async {
     if (UserCache.isReady) {
       setState(() {
@@ -249,9 +242,6 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
       _isFetchingUser = false;
     }
   }
-
-  // ================= ROOMS =================
-
   Future<void> _fetchRooms() async {
     try {
       final res = await ApiClient.dio.get('/rooms');
@@ -282,7 +272,7 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
         '/usage',
         queryParameters: {
           "mode": "history",
-          "range": "day", // bisa day/month sesuai kebutuhan
+          "range": "day",
           "date": now.toIso8601String().split('T').first,
         },
       );
@@ -388,7 +378,7 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text("Delete",
-                style: TextStyle(color: Color.fromARGB(255, 255, 0, 0)),
+                style: TextStyle(color: Color(0xFFF62E52)),
                 ),
           ),
         ],
@@ -405,8 +395,6 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
 
     await _refreshRooms();
   }
-
-  // ================= UI =================
 
   @override
   Widget build(BuildContext context) {
@@ -444,7 +432,7 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
           children: [
             if (_isSelectionMode && _selectedRoomIds.isNotEmpty)
               IconButton(
-                icon: const Icon(Icons.delete, color:Color(0xFFFF0000)),
+                icon: const Icon(Icons.delete, color:Color(0xFFF62E52)),
                 onPressed: _deleteSelectedRooms,
               ),
             if (!_isSelectionMode)
@@ -501,7 +489,7 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
       final wattA = _roomWattMap[idA] ?? 0;
       final wattB = _roomWattMap[idB] ?? 0;
 
-      return wattB.compareTo(wattA); // descending
+      return wattB.compareTo(wattA);
     });
 
     return Wrap(

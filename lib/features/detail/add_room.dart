@@ -3,9 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:zapp/core/components/layout.dart';
-import 'package:zapp/features/detail/apiclient.dart';
+import 'package:zapp/features/detail/api_client.dart';
 import 'package:dio/dio.dart';
-
 
 class AddRoom extends StatefulWidget {
   const AddRoom({super.key});
@@ -90,8 +89,8 @@ class _AddRoomPageState extends State<AddRoom> {
       );
     }
 
-    Navigator.pop(context); // close loading
-    Navigator.pop(context, true); // back
+    Navigator.pop(context);
+    Navigator.pop(context, true);
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Room added successfully")),

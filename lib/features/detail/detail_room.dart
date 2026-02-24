@@ -1,8 +1,6 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'apiclient.dart';
+import 'api_client.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 
@@ -764,7 +762,7 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
                                 onPressed: () => Navigator.pop(context, true),
                                 child: const Text(
                                   "Delete",
-                                  style: TextStyle(color: Color(0xFFFF00000)),
+                                  style: TextStyle(color: Color(0xFFF62E52)),
                                 ),
                               ),
                             ],

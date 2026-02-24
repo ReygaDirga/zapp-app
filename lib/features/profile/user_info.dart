@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:zapp/core/cache/user_cache.dart';
@@ -80,16 +79,6 @@ class _UserInfoPage extends State<UserInfoPage> {
 
         if (!mounted) return;
         Navigator.of(context).popUntil((route) => route.isFirst);
-
-        // bool checkEmail = true;
-
-        // while (checkEmail) {
-        //   if (user.email == newEmail) {
-        //     if (!mounted) return;
-        //     checkEmail = false;
-        //     Navigator.pop(context, true);
-        //   }
-        // }
         return;
       }
 

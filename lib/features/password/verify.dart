@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -185,8 +184,6 @@ class _VerifyPageState extends State<VerifyPage> {
                   ),
                 ),
               ),
-
-            // const SizedBox(height: 14),
 
             Center(
               child: countdown > 0

@@ -30,7 +30,6 @@ class ContactUsPage extends StatelessWidget {
             ),
             const SizedBox(height: 20),
 
-            /// CUSTOMER SUPPORT
             _buildCard(
               title: 'Customer Support',
               child: Column(
@@ -52,7 +51,6 @@ class ContactUsPage extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            /// SOCIAL MEDIA
             _buildCard(
               title: 'Social Media',
               child: Column(
@@ -83,7 +81,6 @@ class ContactUsPage extends StatelessWidget {
     );
   }
 
-  /// CARD CONTAINER
   static Widget _buildCard({
     required String title,
     required Widget child,
@@ -121,7 +118,6 @@ class ContactUsPage extends StatelessWidget {
   }
 }
 
-/// INFO ROW (PHONE & EMAIL)
 class _InfoRow extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -172,7 +168,6 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-/// SOCIAL MEDIA ROW (ASSET IMAGE)
 class _SocialRow extends StatelessWidget {
   final String assetPath;
   final String label;

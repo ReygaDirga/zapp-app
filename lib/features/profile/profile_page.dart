@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:zapp/core/cache/user_cache.dart';
@@ -123,7 +122,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 Navigator.of(context).popUntil((route) => route.isFirst);
               },
               style: TextButton.styleFrom(
-                foregroundColor: Color(0xFFFF0000),
+                foregroundColor: Color(0xFFF62E52),
               ),
               child: const Text(
                 'Log out',

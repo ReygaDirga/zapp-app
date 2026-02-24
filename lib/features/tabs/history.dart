@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:zapp/features/detail/apiclient.dart';
+import 'package:zapp/features/detail/api_client.dart';
 import 'package:zapp/features/models/usage_item.dart';
 import 'package:zapp/features/models/room.dart';
 import 'package:zapp/routes/route_observer.dart';
@@ -806,10 +806,7 @@ class HistoryState extends State<HistoryPage> with RouteAware {
       final dir = await getApplicationDocumentsDirectory();
       final file = File("${dir.path}/$filename");
       await file.writeAsBytes(response.data);
-
       await OpenFilex.open(file.path);
-
-      // await OpenFilex.open(file.path);
     } catch (e) {
       print(e);
     } finally {
@@ -838,10 +835,9 @@ class HistoryState extends State<HistoryPage> with RouteAware {
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
-              mainAxisSize: MainAxisSize.min, // 🔥 penting
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                /// HEADER
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -861,8 +857,6 @@ class HistoryState extends State<HistoryPage> with RouteAware {
 
                 const SizedBox(height: 12),
                 Divider(color: Colors.grey.shade300),
-
-                /// CONTENT
                 Flexible(
                   child: isLoading
                       ? const Padding(
@@ -950,7 +944,6 @@ class HistoryState extends State<HistoryPage> with RouteAware {
                   maxHeight: 280,
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    // borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.1),
