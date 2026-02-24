@@ -764,7 +764,7 @@ class _HomeOfficePageState extends State<HomeOfficePage> {
                                 onPressed: () => Navigator.pop(context, true),
                                 child: const Text(
                                   "Delete",
-                                  style: TextStyle(color: Color(0xFFFF00000)),
+                                  style: TextStyle(color: Color(0xFFF62E52)),
                                 ),
                               ),
                             ],

@@ -123,7 +123,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 Navigator.of(context).popUntil((route) => route.isFirst);
               },
               style: TextButton.styleFrom(
-                foregroundColor: Color(0xFFFF0000),
+                foregroundColor: Color(0xFFF62E52),
               ),
               child: const Text(
                 'Log out',

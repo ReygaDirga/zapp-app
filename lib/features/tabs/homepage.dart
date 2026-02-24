@@ -388,7 +388,7 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text("Delete",
-                style: TextStyle(color: Color.fromARGB(255, 255, 0, 0)),
+                style: TextStyle(color: Color(0xFFF62E52)),
                 ),
           ),
         ],
@@ -444,7 +444,7 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
           children: [
             if (_isSelectionMode && _selectedRoomIds.isNotEmpty)
               IconButton(
-                icon: const Icon(Icons.delete, color:Color(0xFFFF0000)),
+                icon: const Icon(Icons.delete, color:Color(0xFFF62E52)),
                 onPressed: _deleteSelectedRooms,
               ),
             if (!_isSelectionMode)

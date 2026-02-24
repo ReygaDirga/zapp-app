@@ -67,6 +67,12 @@ flutter_icons:
   ios : true
   image_path: "assets/icon/ZAPP.png"
 
+fonts:
+  - family: Helvetica
+    fonts:
+      - asset: assets/font/Helvetica.ttf
+        weight: 700
+
 # The following section is specific to Flutter packages.
 flutter:
   assets:
