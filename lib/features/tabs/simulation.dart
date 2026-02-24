@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:zapp/features/detail/apiclient.dart';
+import 'package:zapp/features/detail/api_client.dart';
 import 'package:zapp/features/models/usage_item.dart';
 import 'package:zapp/features/models/room.dart';
 import 'package:zapp/routes/route_observer.dart';

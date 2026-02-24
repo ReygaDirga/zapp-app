@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -8,15 +7,12 @@ import 'package:zapp/features/profile/profile_page.dart';
 import 'package:zapp/routes/route_observer.dart';
 import 'package:zapp/core/components/carousel.dart';
 import 'package:zapp/core/components/room_cart.dart';
-
 import 'simulation.dart';
 import 'history.dart';
 import 'news.dart';
-
-import 'package:zapp/features/detail/addroom.dart';
+import 'package:zapp/features/detail/add_room.dart';
 import 'package:zapp/features/detail/detail_room.dart';
-import 'package:zapp/features/detail/apiclient.dart';
-import 'package:zapp/features/detail/delroom.dart';
+import 'package:zapp/features/detail/api_client.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});

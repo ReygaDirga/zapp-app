@@ -1,8 +1,6 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'apiclient.dart';
+import 'api_client.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 
