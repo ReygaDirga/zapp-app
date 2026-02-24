@@ -80,16 +80,6 @@ class _UserInfoPage extends State<UserInfoPage> {
 
         if (!mounted) return;
         Navigator.of(context).popUntil((route) => route.isFirst);
-
-        // bool checkEmail = true;
-
-        // while (checkEmail) {
-        //   if (user.email == newEmail) {
-        //     if (!mounted) return;
-        //     checkEmail = false;
-        //     Navigator.pop(context, true);
-        //   }
-        // }
         return;
       }
 

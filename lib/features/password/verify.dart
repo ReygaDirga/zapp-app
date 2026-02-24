@@ -186,8 +186,6 @@ class _VerifyPageState extends State<VerifyPage> {
                 ),
               ),
 
-            // const SizedBox(height: 14),
-
             Center(
               child: countdown > 0
                   ? Text(

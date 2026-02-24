@@ -29,7 +29,7 @@ class _DeleteRoomPageState extends State<DeleteRoomPage> {
 
       if (!mounted) return;
 
-      Navigator.pop(context, true); // balik ke homepage dan refresh
+      Navigator.pop(context, true);
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

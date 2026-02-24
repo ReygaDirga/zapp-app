@@ -112,7 +112,6 @@ class _ResetPageState extends State<ResetPage> {
       if (!mounted) return;
 
       Navigator.pushReplacementNamed(context, '/login');
-      // Navigator.of(context).popUntil((route) => route.isFirst);
     } on AuthException catch (e) {
       setState(() => errorText = e.message);
     } catch (_) {

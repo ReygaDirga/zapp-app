@@ -949,7 +949,6 @@ class SimulationState extends State<SimulationPage> with RouteAware {
                   maxHeight: 280,
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    // borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.1),

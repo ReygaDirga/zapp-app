@@ -203,9 +203,6 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
     _retryTimer?.cancel();
     super.dispose();
   }
-
-  // ================= USER =================
-
   Future<void> _loadUsername() async {
     if (UserCache.isReady) {
       setState(() {
@@ -249,9 +246,6 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
       _isFetchingUser = false;
     }
   }
-
-  // ================= ROOMS =================
-
   Future<void> _fetchRooms() async {
     try {
       final res = await ApiClient.dio.get('/rooms');
@@ -282,7 +276,7 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
         '/usage',
         queryParameters: {
           "mode": "history",
-          "range": "day", // bisa day/month sesuai kebutuhan
+          "range": "day",
           "date": now.toIso8601String().split('T').first,
         },
       );
@@ -406,8 +400,6 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
     await _refreshRooms();
   }
 
-  // ================= UI =================
-
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -501,7 +493,7 @@ class _HomeContentState extends State<HomeContent> with RouteAware {
       final wattA = _roomWattMap[idA] ?? 0;
       final wattB = _roomWattMap[idB] ?? 0;
 
-      return wattB.compareTo(wattA); // descending
+      return wattB.compareTo(wattA);
     });
 
     return Wrap(

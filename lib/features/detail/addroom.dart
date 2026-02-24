@@ -90,8 +90,8 @@ class _AddRoomPageState extends State<AddRoom> {
       );
     }
 
-    Navigator.pop(context); // close loading
-    Navigator.pop(context, true); // back
+    Navigator.pop(context);
+    Navigator.pop(context, true);
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Room added successfully")),
