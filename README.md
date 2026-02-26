@@ -63,13 +63,13 @@ By presenting clear data and historical comparisons, the app helps users underst
 |--------------------|------------|
 | Client             | Flutter    |
 | Auth & Database    | Supabase   |
-| Backend API                | ![NestJS](https://github.com/darrentimotius/zapp-api)     |
+| Backend API                | [NestJS](https://github.com/darrentimotius/zapp-api)     |
 
 ## Backend API
 
 The backend service for ZAPP! is developed separately using NestJS and is available in the following repository:
 
-![zapp-api](https://github.com/darrentimotius/zapp-api)
+https://github.com/darrentimotius/zapp-api
 
 This backend handles:
 - Electricity usage calculations
