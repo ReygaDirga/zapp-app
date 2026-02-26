@@ -7,6 +7,7 @@
     <a href="LICENSE" target="_blank"><img src="https://img.shields.io/badge/license-GPL--3.0-green" alt="Package License" /></a>
     <a href="https://flutter.dev/" target="_blank"><img src="https://img.shields.io/badge/Flutter-3.9.2+-blue?logo=flutter" alt="Flutter" /></a>
     <a href="https://supabase.com/" target="_blank"><img src="https://img.shields.io/badge/Supabase-auth-3DD08F?logo=supabase" alt="Supabase"/></a>
+    <a href="https://nestjs.com" target="_blank"><img src="https://img.shields.io/badge/NestJS-API-EB295C?logo=nestjs" alt="NestJS"/></a
   </p>
 
 ## Description
@@ -23,7 +24,10 @@ By presenting clear data and historical comparisons, the app helps users underst
 ## Features
 
 - **Electricity Usage Calculation**  
-  Calculate electricity consumption based on rooms and electrical appliances added by users.
+  Calculate electricity consumption based on rooms and electrical appliances added by users for:
+  - Daily
+  - Monthly
+  - Yearly periods
 
 - **Room & Appliance Management**  
   Users can add multiple rooms and assign electrical devices to each room.
@@ -37,6 +41,14 @@ By presenting clear data and historical comparisons, the app helps users underst
 - **Authentication System**  
   Secure user authentication powered by Supabase.
 
+- **Energy News & Updates**  
+  Stay informed with the latest news related to:
+  - Electricity trends
+  - Renewable energy developments
+  - Government energy policies
+  - Sustainable living practices
+
+  News content is updated regularly to keep users aware of current energy-related issues.
 
 ## How It Works
 
@@ -47,10 +59,22 @@ By presenting clear data and historical comparisons, the app helps users underst
 5. Users can view the usage and history over different time periods.
 
 ## Tech Stack
-| Category | Technology |
-|----------|------------|
-| Client   | Flutter    |
-| Auth     | Supabase   |
+| Category           | Technology |
+|--------------------|------------|
+| Client             | Flutter    |
+| Auth & Database    | Supabase   |
+| Backend API                | ![NestJS](https://github.com/darrentimotius/zapp-api)     |
+
+## Backend API
+
+The backend service for ZAPP! is developed separately using NestJS and is available in the following repository:
+
+![zapp-api](https://github.com/darrentimotius/zapp-api)
+
+This backend handles:
+- Electricity usage calculations
+- Data storage & history tracking
+- API endpoints consumed by the Flutter mobile app
 
 ## Installation
 
